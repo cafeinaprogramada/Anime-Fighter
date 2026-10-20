@@ -26,7 +26,7 @@ try{const E=window.ParticleEmitter.Emitter,config={lifetime:{min:.16,max:kind===
 }
 function cinematic(x,y,kind='impact'){cinemaKind=kind;cinemaFreeze=kind==='break'?13:kind==='heavy'?9:kind==='fire'?7:5;cinemaHold=kind==='break'?54:kind==='heavy'?25:kind==='fire'?24:17;zoomTime=Math.max(zoomTime,kind==='break'?35:20);flashScreen=Math.max(flashScreen,kind==='break'?19:9);rings.push({x,y,r:kind==='break'?18:10,age:0,max:kind==='break'?47:23,kind});particleEmitter(x,y,kind==='break'?'break':'impact',kind==='break'?650:350);burst(x,y,kind==='break'?0x80dcff:0xffca65,kind==='break'?85:48,'spark')}
 
-function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
+function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,hitStreak:0,lastHitTick:-999,panicPending:false,panicCooldown:0,panicEscape:false,spaceTimer:0,spaceDir:0,spaceCooldown:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
 function clearCombatVFX(){
  particles.length=0;projectiles.length=0;rings.length=0;chipFields.length=0;
  for(const item of vfxEmitters){try{item.em.emit=false;item.em.destroy()}catch(e){}}
@@ -135,11 +135,20 @@ function ai(f,enemy){
  const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*profile.speed*(f.kind==='chip'&&!f.ground?1.6:1);
  const can=k=>!!M[k]&&f.stamina>=staminaCost(f,M[k].cost);
  q.cooldown=Math.max(0,q.cooldown-1);q.dashCooldown=Math.max(0,(q.dashCooldown||0)-1);q.zoneCooldown=Math.max(0,(q.zoneCooldown||0)-1);q.zoneTimer=Math.max(0,(q.zoneTimer||0)-1);q.escapeCooldown=Math.max(0,(q.escapeCooldown||0)-1);q.guardHold=Math.max(0,(q.guardHold||0)-1);
- q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);
+ q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);q.panicCooldown=Math.max(0,(q.panicCooldown||0)-1);q.spaceCooldown=Math.max(0,(q.spaceCooldown||0)-1);
  if(!canAct(f))return;
  // Preserve active dash momentum: the normal AI decision loop must not overwrite it.
  if(f.dash>0||f.airDash>0)return;
  f.guard=false;f.crouch=false;f.vx=0;
+ // Three-hit response: guard when viable, otherwise escape airborne toward the arena center.
+ if(q.panicPending&&f.ground){
+  q.panicPending=false;q.moveCommit=0;q.spaceTimer=0;
+  if(!f.guardBroken&&f.stamina>=27){q.guardHold=55;q.panicEscape=false}
+  else{q.panicEscape=true;q.escapeDir=f.x<W/2?1:-1;q.escapeFrames=35;
+   f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;f.vx=q.escapeDir*speed;setState(f,'jump');return}
+ }
+ if(q.panicEscape&&!f.ground){q.escapeDir=f.x<W/2?1:-1;q.escapeFrames=Math.max(q.escapeFrames,20)}
+ if(q.panicEscape&&f.ground)q.panicEscape=false;
  // New defensive movement branch, preserving all existing offensive AI.
  const cornered=p.backward<175&&p.dist<260,losing=f.hp+15<enemy.hp;
  if(f.ground&&q.escapeCooldown===0&&f.stamina>20&&(cornered||p.dist<170&&losing)&&Math.random()<.25){
@@ -152,12 +161,20 @@ function ai(f,enemy){
  }
  if(f.ground&&q.guardHold>0&&!f.guardBroken&&f.stamina>12){q.moveCommit=0;f.guard=true;f.dash=0;setState(f,'guard');return}
  // Commit to one spacing decision for several frames; only urgent defense interrupts it.
- if(f.kind==='jefrey'&&f.ground&&q.moveCommit>0){
+ if(f.ground&&q.moveCommit>0){
   const room=q.moveDir>0?W-45-f.x:f.x-45;
   if(room>42){q.moveCommit--;f.vx=q.moveDir*speed*.95;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.moveCommit=0;
  }
 
+ // All fighters keep a stable movement decision until its duration expires.
+ // Do not suppress an immediate attack opportunity while walking into striking range.
+ if(f.ground&&q.spaceTimer>0){
+  if(p.dist<155&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
+  const room=q.spaceDir>0?W-45-f.x:f.x-45;
+  if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.85;setState(f,f.vx*p.dir>0?'walk':'back');return}
+  q.spaceTimer=0;
+ }
  // Wesley occasionally shifts to ranged zoning when outdistanced or badly losing the life trade.
  // Persistent short-term state prevents frame-by-frame indecision; cooldown prevents spam.
  if(f.kind==='wesley'&&f.ground){
@@ -217,12 +234,12 @@ function ai(f,enemy){
  }
  if(q.state==='recover'){
   // Never stand still in the opponent's striking range; defend, retreat or counter.
-  if(f.kind==='jefrey'&&f.ground&&q.moveCooldown===0&&p.dist<preferred+85){
+  if(f.ground&&q.moveCooldown===0&&p.dist<preferred+85){
    const retreat=-p.dir,room=p.backward;
-   if(room>105&&Math.random()<.64&&aiDirectionalDash(f,retreat,profile,level)){
+   if(room>105&&Math.random()<(f.kind==='jefrey'?.54:.34)&&aiDirectionalDash(f,retreat,profile,level)){
     q.moveCooldown=65+Math.floor(Math.random()*40);return;
    }
-   if(room>70){q.moveDir=retreat;q.moveCommit=35+Math.floor(Math.random()*45);q.moveCooldown=90;f.vx=retreat*speed*.95;setState(f,'back');return}
+   if(room>70){q.spaceDir=retreat;q.spaceTimer=20+Math.floor(Math.random()*28);q.moveCooldown=75;f.vx=retreat*speed*.85;setState(f,'back');return}
   }
   if(p.dist<125&&q.cooldown===0&&can('punch')&&p.enemyRecover&&aiStrike(f,p,level))return;
   if(p.dist<preferred-25&&p.backward>75)f.vx=-p.dir*speed*.8;
@@ -243,11 +260,12 @@ function ai(f,enemy){
   else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;if(f.kind==='jefrey')jefreySmoke(f);setState(f,'jump');q.cooldown=12;return}
  }
  if(p.dist>preferred+35){
-  if(f.kind==='jefrey'&&p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<.55&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
+  if(p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<(f.kind==='jefrey'?.48:.28)&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
   if(p.dist>285&&aiDash(f,p,profile,level))return;
+  if(q.spaceTimer===0&&q.spaceCooldown===0){q.spaceDir=p.dir;q.spaceTimer=22+Math.floor(Math.random()*26);q.spaceCooldown=40}
   f.vx=p.dir*speed;setState(f,'walk');return;
  }
- if(p.dist<90&&p.backward>85&&Math.random()<.12){
+ if(p.dist<90&&p.backward>85&&q.spaceCooldown===0&&Math.random()<.12){q.spaceDir=-p.dir;q.spaceTimer=20+Math.floor(Math.random()*20);q.spaceCooldown=60;
   f.vx=-p.dir*speed*.65;setState(f,'back');return;
  }
  if(p.dist<=180&&q.cooldown===0&&aiStrike(f,p,level))return;
@@ -272,6 +290,8 @@ function announce(msg,duration=65){callout=msg;calloutTime=duration;try{if('spee
 function impact(a,b,m,projectile=false){
 const shielded=chipShieldActive(b);if(shielded){burst(b.x,b.y-105,0xffffff,25,'spark');burst(b.x,b.y-105,0xffe47b,28,'spark');particleEmitter(b.x,b.y-105,'chip',270);rings.push({x:b.x,y:b.y-105,r:24,age:0,max:22,kind:'chip'});shake=Math.max(shake,5);notify(b.id,'RADIANT ARMOR','gold');a.stop=Math.max(a.stop,7);return}
 const blocked=b.guard&&b.ground&&!b.guardBroken&&b.face===-a.face;
+ // Track consecutive unblocked hits within a short combo window for CPU defense.
+ if(!blocked&&b.ai){const q=b.ai;q.hitStreak=(tick-q.lastHitTick<=135?q.hitStreak:0)+1;q.lastHitTick=tick;if(q.hitStreak>=3&&q.panicCooldown<=0){q.panicPending=true;q.panicCooldown=190;q.hitStreak=0;q.moveCommit=0;q.spaceTimer=0}}else if(blocked&&b.ai){b.ai.hitStreak=0}
 let dmg=blocked?Math.ceil(m.damage*.15):m.damage;
 if(!firstStrike){firstStrike=true;notify(a.id,'FIRST STRIKE','gold')}
 if(!blocked&&a.comboTime>0&&a.combo>=1)notify(a.id,(a.combo+1)+' HIT COMBO','combo');
