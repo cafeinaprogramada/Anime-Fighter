@@ -36,3 +36,23 @@ Enable the debug button to inspect collision rectangles.
 
 ## IP / asset policy
 Use the ROM only for analysis and comparison. Browser release uses original code and replacement artwork/audio; do not redistribute the ROM or copyrighted game assets.
+
+
+## 2026-10-20 — Wesley v0.3 and SNES ROM verification
+
+ROM file: `Street Fighter Alpha 2 (USA).sfc` (4,194,304 bytes).
+SHA-256: `910a29f834199c63c22beddc749baba746da9922196a553255deade59f4fc127`.
+At `0x7FC0` and `0xFFC0`, the title is `STREET FIGHTER ALPHA2`; both mapping bytes at header +0x15 are `0x32`, and both reset vectors are `0xFF90`. The two checksum fields differ by one, so debugger confirmation of the active header and cartridge mapping is required. These bytes **do not reveal attack timing or collision tables**. No disassembly of gameplay routines has yet been completed.
+
+### Evidence and implementation boundaries
+- The v0.3 browser game loads the user-supplied `assets/characters/Wesley.png` (96×96 cells, 4 columns, 13 populated rows) through PixiJS.
+- Rows mapped: idle 0, guard 1, low-health 2, hurt 3, heavy 4, kick 5, punch 6, fire 7, walk 8, backwalk 9, victory 10, alternate idle 11, KO 12.
+- Attack phases and hitbox sizes are **authored prototype values**. No hitboxes or move data have been extracted from the SNES ROM.
+- MUGEN's documented `StateDef`, `ChangeState`, `HitDef` and state-trigger approach inspired the v0.3 CPU behavior/state separation, but this is **not** a port of Kung Fu Man's exact state tables.
+- Debug overlays distinguish hurtboxes, pushboxes and attack boxes. Projectile uses a separate world-space hitbox.
+- Future work: cartridge debugger trace, locate runtime position/state values, observe hitbox geometry with RAM breakpoints, extract/validate per-frame data, automate browser tests.
+
+References:
+- https://network.mugenguild.com/justnopoint/1.1docs/cns.html
+- https://github.com/fanyer/mugen/blob/master/chars/kfm/kfm.cns
+
