@@ -26,7 +26,7 @@ try{const E=window.ParticleEmitter.Emitter,config={lifetime:{min:.16,max:kind===
 }
 function cinematic(x,y,kind='impact'){cinemaKind=kind;cinemaFreeze=kind==='break'?13:kind==='heavy'?9:kind==='fire'?7:5;cinemaHold=kind==='break'?54:kind==='heavy'?25:kind==='fire'?24:17;zoomTime=Math.max(zoomTime,kind==='break'?35:20);flashScreen=Math.max(flashScreen,kind==='break'?19:9);rings.push({x,y,r:kind==='break'?18:10,age:0,max:kind==='break'?47:23,kind});particleEmitter(x,y,kind==='break'?'break':'impact',kind==='break'?650:350);burst(x,y,kind==='break'?0x80dcff:0xffca65,kind==='break'?85:48,'spark')}
 
-function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,hitStreak:0,lastHitTick:-999,panicPending:false,panicCooldown:0,panicEscape:false,spaceTimer:0,spaceDir:0,spaceCooldown:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
+function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,hitStreak:0,lastHitTick:-999,panicPending:false,panicCooldown:0,panicEscape:false,spaceTimer:0,spaceDir:0,spaceCooldown:0,tactic:'attack',tacticUntil:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
 function clearCombatVFX(){
  particles.length=0;projectiles.length=0;rings.length=0;chipFields.length=0;
  for(const item of vfxEmitters){try{item.em.emit=false;item.em.destroy()}catch(e){}}
@@ -134,6 +134,14 @@ function ai(f,enemy){
  const level=document.getElementById('difficulty').value;
  const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*profile.speed*(f.kind==='chip'&&!f.ground?1.6:1);
  const can=k=>!!M[k]&&f.stamina>=staminaCost(f,M[k].cost);
+ // Re-evaluate the combat approach every three seconds, with a 25% aggression bias.
+ if(tick>=q.tacticUntil){
+  const hurt=f.hp<enemy.hp-18,close=p.dist<245,healthy=f.stamina>24;
+  const attackWeight=Math.min(.92,.75+(close?.08:0)+(healthy?.05:0)-(hurt?.08:0));
+  q.tactic=Math.random()<attackWeight?'attack':'defend';
+  q.tacticUntil=tick+180;q.spaceTimer=0;q.moveCommit=0;
+ }
+ const aggressive=q.tactic==='attack';
  q.cooldown=Math.max(0,q.cooldown-1);q.dashCooldown=Math.max(0,(q.dashCooldown||0)-1);q.zoneCooldown=Math.max(0,(q.zoneCooldown||0)-1);q.zoneTimer=Math.max(0,(q.zoneTimer||0)-1);q.escapeCooldown=Math.max(0,(q.escapeCooldown||0)-1);q.guardHold=Math.max(0,(q.guardHold||0)-1);
  q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);q.panicCooldown=Math.max(0,(q.panicCooldown||0)-1);q.spaceCooldown=Math.max(0,(q.spaceCooldown||0)-1);
  if(!canAct(f))return;
@@ -151,17 +159,17 @@ function ai(f,enemy){
  if(q.panicEscape&&f.ground)q.panicEscape=false;
  // New defensive movement branch, preserving all existing offensive AI.
  const cornered=p.backward<175&&p.dist<260,losing=f.hp+15<enemy.hp;
- if(f.ground&&q.escapeCooldown===0&&f.stamina>20&&(cornered||p.dist<170&&losing)&&Math.random()<.25){
+ if(f.ground&&q.escapeCooldown===0&&f.stamina>20&&(cornered||p.dist<170&&losing)&&Math.random()<(aggressive?.055:.18)){
   q.escapeDir=f.x<W/2?1:-1;q.escapeFrames=26;q.escapeCooldown=170+Math.floor(Math.random()*100);
   f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;f.vx=q.escapeDir*speed;
   setState(f,'jump');return;
  }
  if(f.ground&&!f.guardBroken&&f.stamina>17&&(p.threat||p.incoming&&Math.abs(p.incoming.x-f.x)<170)){
-  q.guardHold=Math.max(q.guardHold,15+Math.floor(Math.random()*15));
+  q.guardHold=Math.max(q.guardHold,aggressive?8:18+Math.floor(Math.random()*12));
  }
- if(f.ground&&q.guardHold>0&&!f.guardBroken&&f.stamina>12){q.moveCommit=0;f.guard=true;f.dash=0;setState(f,'guard');return}
+ if(f.ground&&q.guardHold>0&&!f.guardBroken&&f.stamina>12&&(!aggressive||p.threat||q.guardHold>35)){q.moveCommit=0;f.guard=true;f.dash=0;setState(f,'guard');return}
  // Commit to one spacing decision for several frames; only urgent defense interrupts it.
- if(f.ground&&q.moveCommit>0){
+ if(f.ground&&q.moveCommit>0&&!aggressive){
   const room=q.moveDir>0?W-45-f.x:f.x-45;
   if(room>42){q.moveCommit--;f.vx=q.moveDir*speed*.95;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.moveCommit=0;
@@ -169,7 +177,7 @@ function ai(f,enemy){
 
  // All fighters keep a stable movement decision until its duration expires.
  // Do not suppress an immediate attack opportunity while walking into striking range.
- if(f.ground&&q.spaceTimer>0){
+ if(f.ground&&q.spaceTimer>0&&!aggressive){
   if(p.dist<155&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
   const room=q.spaceDir>0?W-45-f.x:f.x-45;
   if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.85;setState(f,f.vx*p.dir>0?'walk':'back');return}
@@ -184,7 +192,7 @@ function ai(f,enemy){
    q.zoneTimer=110+Math.floor(Math.random()*65);
    q.zoneCooldown=310+Math.floor(Math.random()*130);
   }
-  if(q.zoneTimer>0&&!p.threat){
+  if(q.zoneTimer>0&&!p.threat&&(!aggressive||p.dist>265)){
    const desired=losingBadly?355:305;
    if(p.dist<desired-45&&p.backward>90){f.vx=-p.dir*speed*.85;setState(f,'back');return}
    if(p.dist>desired+155&&p.forward>90){f.vx=p.dir*speed*.7;setState(f,'walk');return}
@@ -200,9 +208,9 @@ function ai(f,enemy){
  // Wesley vs airborne Chip changes preferred range, not the combat state machine.
  const versusFlyingChip=f.kind==='wesley'&&enemy.kind==='chip'&&p.enemyAir;
  const preferred=versusFlyingChip?190:p.critical?230:profile.range;
- if((p.threat||p.incoming&&Math.abs(p.incoming.x-f.x)<135)&&f.ground&&f.stamina>12&&!f.guardBroken){
+ if((p.threat||p.incoming&&Math.abs(p.incoming.x-f.x)<135)&&f.ground&&f.stamina>12&&!f.guardBroken&&(!aggressive||p.dist>145)){
   q.state='defend';
- }else if(p.critical||p.low){
+ }else if((p.critical||p.low)&&!aggressive){
   q.state='recover';
  }else if(p.dist<185){
   q.state='pressure';
@@ -221,8 +229,8 @@ function ai(f,enemy){
    if(!f.airDashUsed&&q.escapeFrames<18&&f.y<FLOOR-65){f.airDash=14;f.airDashDir=q.escapeDir;f.airDashUsed=true;f.vy=Math.min(f.vy,0)}
    setState(f,'jump');return}
   if(f.kind==='chip'){
-   if(!p.low&&p.dist<185&&f.y<enemy.y-45&&can('heavy')&&Math.random()<.16&&aiStrikeDive(f)){q.cooldown=30;return}
-   if(!p.low&&f.vy>0&&f.y>235&&p.dist<390&&Math.random()<(level==='hard'?.085:.06)&&chipHop(f))return;
+   if(!p.low&&p.dist<245&&f.y<enemy.y-35&&can('heavy')&&Math.random()<.33&&aiStrikeDive(f)){q.cooldown=30;return}
+   if(!p.low&&f.vy>0&&f.y>235&&p.dist<390&&Math.random()<(level==='hard'?.13:.095)&&chipHop(f))return;
   }
   if(f.kind==='jefrey'&&p.dist<165&&can('kick')&&q.cooldown===0&&Math.random()<.13&&aiStrike(f,p,level))return;
   if(!f.airDashUsed&&p.dist>140&&p.dist<440&&p.forward>100&&Math.random()<(f.kind==='chip'?.1:.06)){
@@ -234,7 +242,7 @@ function ai(f,enemy){
  }
  if(q.state==='recover'){
   // Never stand still in the opponent's striking range; defend, retreat or counter.
-  if(f.ground&&q.moveCooldown===0&&p.dist<preferred+85){
+  if(f.ground&&q.moveCooldown===0&&p.dist<preferred+85&&!aggressive){
    const retreat=-p.dir,room=p.backward;
    if(room>105&&Math.random()<(f.kind==='jefrey'?.54:.34)&&aiDirectionalDash(f,retreat,profile,level)){
     q.moveCooldown=65+Math.floor(Math.random()*40);return;
@@ -248,28 +256,28 @@ function ai(f,enemy){
   setState(f,f.vx?(f.vx*p.dir>0?'walk':'back'):'idle');return;
  }
  // Every fighter can punish and attack; opponent-specific checks never bypass this.
- if(p.dist<180&&q.cooldown===0&&aiStrike(f,p,level))return;
+ if(p.dist<(aggressive?205:180)&&q.cooldown===0&&aiStrike(f,p,level))return;
  if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<260&&(p.threat||p.enemyAir||enemy.x<155||enemy.x>W-155)&&Math.random()<.13){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
  if(f.kind==='jefrey'&&f.ground&&p.dist>355&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
- if(f.stamina>35&&p.dist>140&&p.dist<395&&q.cooldown===0&&Math.random()<Math.max(profile.air,.023)){
+ if(f.stamina>35&&p.dist>140&&p.dist<395&&q.cooldown===0&&Math.random()<Math.max(profile.air,aggressive&&f.kind==='chip'?.07:.023)){
   if(f.kind==='chip'){if(chipHop(f)){q.cooldown=14;return}}
   else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;if(f.kind==='jefrey')jefreySmoke(f);setState(f,'jump');q.cooldown=12;return}
  }
  if(p.dist>preferred+35){
-  if(p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<(f.kind==='jefrey'?.48:.28)&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
+  if(p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<(aggressive?(f.kind==='jefrey'?.72:.55):(f.kind==='jefrey'?.34:.22))&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
   if(p.dist>285&&aiDash(f,p,profile,level))return;
   if(q.spaceTimer===0&&q.spaceCooldown===0){q.spaceDir=p.dir;q.spaceTimer=22+Math.floor(Math.random()*26);q.spaceCooldown=40}
   f.vx=p.dir*speed;setState(f,'walk');return;
  }
- if(p.dist<90&&p.backward>85&&q.spaceCooldown===0&&Math.random()<.12){q.spaceDir=-p.dir;q.spaceTimer=20+Math.floor(Math.random()*20);q.spaceCooldown=60;
+ if(!aggressive&&p.dist<90&&p.backward>85&&q.spaceCooldown===0&&Math.random()<.12){q.spaceDir=-p.dir;q.spaceTimer=20+Math.floor(Math.random()*20);q.spaceCooldown=60;
   f.vx=-p.dir*speed*.65;setState(f,'back');return;
  }
- if(p.dist<=180&&q.cooldown===0&&aiStrike(f,p,level))return;
- f.vx=p.dist>110?p.dir*speed*.6:0;
+ if(p.dist<=205&&q.cooldown===0&&aiStrike(f,p,level))return;
+ f.vx=p.dist>(aggressive?75:110)?p.dir*speed*(aggressive?.9:.6):0;
  setState(f,f.vx?'walk':'idle');
 }
 function aiStrikeDive(f){
