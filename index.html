@@ -1,4 +1,4 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anime Fighter · Wesley Combat Lab</title><style>*{box-sizing:border-box}body{margin:0;background:#080d1b;color:#e7eeff;font:14px system-ui}main{max-width:1120px;margin:auto;padding:16px}h1{color:#ffcc66;font-style:italic;letter-spacing:2px;margin:0}p{color:#b7c5de;line-height:1.6}button,select{background:#26385d;color:white;border:1px solid #6e86ac;border-radius:6px;padding:9px;cursor:pointer}button:hover{background:#38558a}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:13px 0}canvas{width:100%;height:auto;display:block;border:2px solid #475a7a}#status{color:#ffdb88}.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.keys div{background:#131f38;padding:12px;border-radius:7px}body{background:radial-gradient(ellipse at 50% 0%,#26334c 0%,#090e19 63%);font-family:system-ui,Arial,sans-serif}main{max-width:1170px}h1{font-size:27px;text-shadow:0 2px 1px #000,0 0 20px #ffb63b55;letter-spacing:4px}#stage{position:relative;padding:7px;background:linear-gradient(135deg,#dfae65,#46566d 22%,#131b2e 45%,#a77c47 78%,#dfbd81);box-shadow:0 16px 50px #000a,inset 0 0 0 1px #fff3}canvas{border:1px solid #cfb87a;box-shadow:inset 0 0 30px #000}button,select{background:linear-gradient(180deg,#35445f,#141c30);border:1px solid #8d806b;letter-spacing:.6px;font-weight:700}button:hover{background:linear-gradient(180deg,#62799e,#263b5e)}.keys div{border:1px solid #44536d;background:linear-gradient(145deg,#18243b,#0e1526)}.toolbar{padding:9px;background:#111c30;border:1px solid #3e4c61;border-radius:5px}</style></head><body><main><h1>ANIME FIGHTER <small style="font-size:12px;color:#9cb4da">ROSTER LAB v1.4</small></h1><p>Wesley & Chip · Stamina, guard break e IA de estados · Sem agarrões</p><div class="toolbar"><label>P1 <select id="char1"><option value="wesley">Wesley</option><option value="chip">Chip</option></select></label><label>P2 / CPU <select id="char2"><option value="chip">Chip</option><option value="wesley">Wesley</option></select></label><button id="start">INICIAR / REINICIAR</button><button id="mode">MODO: CPU</button><button id="debug">HITBOXES: OFF</button><button id="pause">PAUSAR</button><label>IA <select id="difficulty"><option value="normal">Normal</option><option value="easy">Fácil</option><option value="hard">Difícil</option></select></label></div><div id="stage"></div><p id="status">Carregando Wesley.png...</p><div class="keys"><div><b>P1</b>: A/D andar (toque duplo: dash no chão ou no ar) · W pular / Chip: pulos extras (5% stamina) · R defender · F soco · G chute · H soco forte (dash) · J especial.</div><div><b>P2 local</b>: ←/→ andar (toque duplo: dash no chão ou no ar) · ↑ pular / Chip: voar ou descer · P defender · U soco · I chute · O soco forte · L especial.</div></div><p>Debug: azul = hurtbox, amarelo = pushbox, vermelho = hitbox. Primeiro a ganhar 2 rounds vence. Stamina: golpes consomem energia; mover congela regeneração; defender golpes drena stamina; guarda quebra em zero e retorna em 20%. Timings provisórios, não extraídos da ROM SNES.</p></main><script src="https://cdn.jsdelivr.net/npm/pixi.js@8.10.2/dist/pixi.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@pixi/particle-emitter@5.0.10/dist/particle-emitter.min.js"></script><script>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anime Fighter · Wesley Combat Lab</title><style>*{box-sizing:border-box}body{margin:0;background:#080d1b;color:#e7eeff;font:14px system-ui}main{max-width:1120px;margin:auto;padding:16px}h1{color:#ffcc66;font-style:italic;letter-spacing:2px;margin:0}p{color:#b7c5de;line-height:1.6}button,select{background:#26385d;color:white;border:1px solid #6e86ac;border-radius:6px;padding:9px;cursor:pointer}button:hover{background:#38558a}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:13px 0}canvas{width:100%;height:auto;display:block;border:2px solid #475a7a}#status{color:#ffdb88}.keys{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.keys div{background:#131f38;padding:12px;border-radius:7px}body{background:radial-gradient(ellipse at 50% 0%,#26334c 0%,#090e19 63%);font-family:system-ui,Arial,sans-serif}main{max-width:1170px}h1{font-size:27px;text-shadow:0 2px 1px #000,0 0 20px #ffb63b55;letter-spacing:4px}#stage{position:relative;padding:7px;background:linear-gradient(135deg,#dfae65,#46566d 22%,#131b2e 45%,#a77c47 78%,#dfbd81);box-shadow:0 16px 50px #000a,inset 0 0 0 1px #fff3}canvas{border:1px solid #cfb87a;box-shadow:inset 0 0 30px #000}button,select{background:linear-gradient(180deg,#35445f,#141c30);border:1px solid #8d806b;letter-spacing:.6px;font-weight:700}button:hover{background:linear-gradient(180deg,#62799e,#263b5e)}.keys div{border:1px solid #44536d;background:linear-gradient(145deg,#18243b,#0e1526)}.toolbar{padding:9px;background:#111c30;border:1px solid #3e4c61;border-radius:5px}</style></head><body><main><h1>ANIME FIGHTER <small style="font-size:12px;color:#9cb4da">ROSTER LAB v1.5</small></h1><p>Wesley & Chip · Stamina, guard break e IA de estados · Sem agarrões</p><div class="toolbar"><label>P1 <select id="char1"><option value="wesley">Wesley</option><option value="chip">Chip</option></select></label><label>P2 / CPU <select id="char2"><option value="chip">Chip</option><option value="wesley">Wesley</option></select></label><button id="start">INICIAR / REINICIAR</button><button id="mode">MODO: CPU</button><button id="debug">HITBOXES: OFF</button><button id="pause">PAUSAR</button><label>IA <select id="difficulty"><option value="normal">Normal</option><option value="easy">Fácil</option><option value="hard">Difícil</option></select></label></div><div id="stage"></div><p id="status">Carregando Wesley.png...</p><div class="keys"><div><b>P1</b>: A/D andar (toque duplo: dash no chão ou no ar) · W pular / Chip: pulos extras (5% stamina) · R defender · F soco · G chute · H soco forte (dash) · J especial.</div><div><b>P2 local</b>: ←/→ andar (toque duplo: dash no chão ou no ar) · ↑ pular / Chip: voar ou descer · P defender · U soco · I chute · O soco forte · L especial.</div></div><p>Debug: azul = hurtbox, amarelo = pushbox, vermelho = hitbox. Primeiro a ganhar 2 rounds vence. Stamina: golpes consomem energia; mover congela regeneração; defender golpes drena stamina; guarda quebra em zero e retorna em 20%. Timings provisórios, não extraídos da ROM SNES.</p></main><script src="https://cdn.jsdelivr.net/npm/pixi.js@8.10.2/dist/pixi.min.js"></script><script src="https://cdn.jsdelivr.net/npm/@pixi/particle-emitter@5.0.10/dist/particle-emitter.min.js"></script><script>
 (async()=>{
 const W=1200,H=594,FLOOR=493,FPS=60,GRAV=.65,SCALE=2.6;
 const M={punch:{cost:12,row:6,start:18,active:5,recover:13,damage:8,reach:103,high:74,stun:17,block:11,push:4},kick:{cost:17,row:5,start:21,active:6,recover:17,damage:12,reach:136,high:50,stun:19,block:13,push:6},heavy:{cost:27,row:4,start:29,active:6,recover:21,damage:17,reach:125,high:74,stun:23,block:15,push:8},fire:{cost:50,row:7,start:28,active:2,recover:24,damage:13,reach:0,high:80,stun:21,block:14,push:6}};
@@ -70,7 +70,7 @@ if(f.guard)setState(f,'guard');else if(f.ground)setState(f,dir?(dir===f.face?'wa
 
 function ai(f,enemy){
 const ai=f.ai,dist=Math.abs(f.x-enemy.x),dx=Math.sign(enemy.x-f.x)||1,level=document.getElementById('difficulty').value;
-const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*(f.kind==='chip'&&!f.ground?1.6:1),low=f.stamina<35,rich=f.stamina>70;
+const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*(f.kind==='chip'&&!f.ground?1.6:1),low=f.stamina<35,rich=f.stamina>70,chip=f.kind==='chip',edgeRoom=dx>0?W-35-f.x:f.x-35,backRoom=dx>0?f.x-35:W-35-f.x;
 ai.timer--;ai.cooldown=Math.max(0,ai.cooldown-1);if(!canAct(f))return;
 f.guard=false;f.crouch=false;f.vx=0;
 const threat=enemy.move&&enemy.t>=enemy.move.start-12&&enemy.t<enemy.move.start+enemy.move.active+3&&dist<enemy.move.reach+65;
@@ -80,7 +80,7 @@ if(incoming&&!f.move&&!f.guardBroken&&f.stun<=0){
  const gap=Math.abs(incoming.x-f.x),eta=gap/Math.max(1,Math.abs(incoming.vx));
  const jumpChance=level==='hard'?.67:level==='normal'?.43:.2;
  if(f.ground&&gap>145&&gap<355&&eta>18&&ai.cooldown===0&&Math.random()<jumpChance){
-  f.guard=false;f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;
+  f.guard=false;f.vy=chip?-10.9:-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;
   f.vx=0;ai.state='evadeProjectile';ai.timer=38;ai.cooldown=45;setState(f,'jump');
   if(level==='hard'&&gap>225&&Math.random()<.35){f.airDash=12;f.airDashUsed=true;f.airDashDir=Math.sign(incoming.vx);burst(f.x,f.y-90,0x8fe9ff,28,'dash');particleEmitter(f.x,f.y-90,'dash',240)}
   return;
@@ -90,32 +90,65 @@ if(incoming&&!f.move&&!f.guardBroken&&f.stun<=0){
  }
 }
 if(ai.state==='evadeProjectile'&&!f.ground){f.vx=0;return}
-if(f.kind==='chip'&&!f.move&&f.ground&&ai.cooldown===0&&dist>130&&dist<420&&f.stamina>35&&Math.random()<(level==='hard'?.028:level==='normal'?.018:.009)){chipHop(f);ai.state='flight';ai.timer=32;ai.cooldown=34;return}
-if(f.kind==='chip'&&!f.ground&&!f.move){if(f.y>215&&f.vy>0&&f.stamina>=35&&Math.random()<(level==='hard'?.036:level==='normal'?.025:.012)){chipHop(f);ai.timer=22;return}if(dist>150&&dist<350&&!f.airDashUsed&&Math.random()<(level==='hard'?.038:.016)){f.airDash=12;f.airDashDir=dx;f.airDashUsed=true;burst(f.x,f.y-90,0xffefb0,35,'spark');particleEmitter(f.x,f.y-90,'chip',300)}if(dist<155&&f.stamina>=M.heavy.cost&&ai.cooldown===0&&f.y<enemy.y-65&&Math.random()<.06){if(attack(f,'heavy')){ai.cooldown=45;return}}}
+if(chip&&!f.move){
+ const hopBudget=staminaCost(f,5),canHop=f.stamina>=hopBudget+6;
+ if(!f.ground){
+  // Aerial pressure: multiple hops and early dashes, but preserve enough stamina to land and defend.
+  if(canHop&&f.y>205&&f.vy>-.8&&dist<450&&Math.random()<(level==='hard'?.135:level==='normal'?.095:.065)){
+   if(chipHop(f)){ai.state='airPressure';ai.timer=22;return}
+  }
+  if(!f.airDashUsed&&dist>105&&dist<470&&edgeRoom>65&&Math.random()<(level==='hard'?.11:level==='normal'?.08:.055)){
+   f.airDash=14;f.airDashDir=dx;f.airDashUsed=true;f.vy=Math.min(f.vy,1);
+   burst(f.x,f.y-90,0xffefb0,38,'spark');particleEmitter(f.x,f.y-90,'chip',340);
+   ai.state='airPressure';ai.timer=18;
+  }
+  if(dist<190&&f.stamina>=staminaCost(f,M.heavy.cost)+4&&ai.cooldown===0&&f.y<enemy.y-55&&Math.random()<.095){
+   if(attack(f,'heavy')){ai.cooldown=45;return}
+  }
+ }else if(f.stamina>=42&&ai.cooldown===0&&dist>115&&dist<460&&Math.random()<(level==='hard'?.055:level==='normal'?.037:.021)){
+  if(chipHop(f)){ai.state='airPressure';ai.timer=38;ai.cooldown=22;return}
+ }
+ // Grounded with low stamina: stay in range, guard selectively, punish, and regain stamina instead of endlessly fleeing.
+ if(f.ground&&f.stamina<45){
+  if(threat&&f.stamina>9&&!f.guardBroken){f.guard=true;f.vx=0;ai.state='defend';ai.timer=12;setState(f,'guard');return}
+  if(dist<108&&f.stamina>=staminaCost(f,M.punch.cost)&&ai.cooldown===0&&enemy.move&&enemy.t>enemy.move.start+enemy.move.active){
+   if(attack(f,'punch')){ai.cooldown=24;return}
+  }
+  if(ai.timer<=0){ai.state=dist<95?'defend':dist>205?'approach':'groundRecover';ai.timer=20+Math.floor(Math.random()*17)}
+  if(ai.state==='groundRecover'||ai.state==='recover'){
+   const desired=155;
+   f.vx=dist>desired+22?dx*speed*.55:dist<desired-25&&backRoom>80?-dx*speed*.42:0;
+   if(f.stamina>13&&threat&&!f.guardBroken){f.guard=true;f.vx=0}
+   setState(f,f.guard?'guard':f.vx?'walk':'idle');return;
+  }
+ }
+}
 if(f.kind==='chip'&&f.ground&&!f.move&&ai.cooldown===0&&f.stamina>=staminaCost(f,M.fire.cost)&&dist<265&&dist>85&&Math.random()<(level==='hard'?.045:level==='normal'?.03:.018)){if(attack(f,'fire')){ai.cooldown=105;ai.state='zone';ai.timer=30;return}}
 if(f.kind==='chip'&&!f.move&&ai.cooldown===0&&f.stamina>=staminaCost(f,M.fire.cost)){const nearCorner=enemy.x<175||enemy.x>W-175,airTrap=!enemy.ground&&dist<205,cornerTrap=nearCorner&&dist<235,approachThreat=threat&&dist<200;if((airTrap||cornerTrap||approachThreat)&&Math.random()<(level==='hard'?.23:level==='normal'?.14:.08)){if(attack(f,'fire')){ai.cooldown=110;ai.state='guardpressure';ai.timer=35;return}}}
 if(ai.timer<=0){
-if(f.guardBroken||low){ai.state='recover';ai.timer=28+Math.floor(Math.random()*22)}
+if(f.guardBroken||(low&&!chip)){ai.state='recover';ai.timer=28+Math.floor(Math.random()*22)}
 else if((threat||projectile)&&!f.guardBroken&&f.stamina>15&&Math.random()<(level==='hard'?.92:level==='easy'?.58:.82)){ai.state='defend';ai.timer=12+Math.floor(Math.random()*13)}
 else if(enemy.guard&&enemy.stamina<35&&rich){ai.state='guardpressure';ai.timer=25}
 else if(enemy.state==='attack'&&enemy.move&&enemy.t>enemy.move.start+enemy.move.active&&dist<165&&ai.cooldown===0){ai.state='punish';ai.timer=22}
 else if(dist>285){ai.state=rich&&Math.random()<.32?'zone':'approach';ai.timer=23+Math.floor(Math.random()*22)}
-else if(dist<90){ai.state=low?'recover':Math.random()<.42?'retreat':'pressure';ai.timer=17+Math.floor(Math.random()*17)}
+else if(dist<90){ai.state=low?(chip?'defend':'recover'):Math.random()<.42?'retreat':'pressure';ai.timer=17+Math.floor(Math.random()*17)}
 else{ai.state=['approach','space','pressure','retreat'][Math.floor(Math.random()*4)];ai.timer=18+Math.floor(Math.random()*21)}
 }
 switch(ai.state){
-case 'recover':f.vx=dist<240?-dx*speed:0;setState(f,f.vx?'back':'idle');break;
+case 'recover':f.vx=dist<240&&backRoom>85?-dx*speed:dist>240?dx*speed*.3:0;setState(f,f.vx?'back':'idle');break;
+case 'groundRecover':f.vx=dist>195?dx*speed*.5:dist<95&&backRoom>85?-dx*speed*.35:0;setState(f,f.vx?'walk':'idle');break;
+case 'airPressure':f.vx=dist>125&&edgeRoom>45?dx*speed*.85:dist<65&&backRoom>65?-dx*speed*.3:0;setState(f,'jump');break;
 case 'defend':if(f.stamina>12&&!f.guardBroken){f.guard=true;setState(f,'guard')}else{ai.state='recover';ai.timer=20}break;
 case 'approach':f.vx=dx*speed;if(dist>260&&f.stamina>55&&ai.cooldown===0&&Math.random()<.015){f.dash=10;f.dashDir=dx;ai.cooldown=35;burst(f.x,f.y-50,0x85dfff,14,'dash')}setState(f,'walk');break;
-case 'retreat':f.vx=-dx*speed;setState(f,'back');break;
+case 'retreat':f.vx=backRoom>85?-dx*speed:dist>120?dx*speed*.5:0;setState(f,f.vx?'back':'idle');break;
 case 'space':f.vx=dist<150?-dx*speed*.75:dist>220?dx*speed*.6:0;setState(f,f.vx?'back':'idle');break;
 case 'zone':if(ai.cooldown===0&&dist>185&&f.stamina>=50&&attack(f,'fire')){ai.cooldown=100;ai.timer=44}else{f.vx=-dx*speed*.3;setState(f,'back')}break;
 case 'punish':if(ai.cooldown===0&&dist<165&&attack(f,dist<105?'punch':'kick')){ai.cooldown=25;ai.timer=27}else{f.vx=dx*speed;setState(f,'walk')}break;
 case 'guardpressure':case 'pressure':
-if(ai.cooldown===0&&dist<170){let options=dist<105?['punch','heavy','kick']:['kick','heavy'];let k=options[Math.floor(Math.random()*options.length)];if(f.stamina<M[k].cost)k='punch';if(attack(f,k)){ai.cooldown=level==='hard'?23:level==='easy'?48:33;ai.timer=ai.cooldown}else{ai.state='recover';ai.timer=25}}
+if(ai.cooldown===0&&dist<170){let options=dist<105?['punch','heavy','kick']:['kick','heavy'];let k=options[Math.floor(Math.random()*options.length)];if(f.stamina<staminaCost(f,M[k].cost))k='punch';if(attack(f,k)){ai.cooldown=level==='hard'?23:level==='easy'?48:33;ai.timer=ai.cooldown}else{ai.state='recover';ai.timer=25}}
 else{f.vx=dx*speed;setState(f,'walk')}break;
 }
-if(!f.move&&f.ground&&dist>115&&dist<245&&rich&&Math.random()<(f.kind==='chip'?.0015:level==='hard'?.008:.004)){f.vy=f.kind==='chip'?-10.9:-15.5;f.ground=false;f.airDashUsed=false;if(f.kind==='chip')f.flightMode='jump';setState(f,'jump')}else if(!f.ground&&!f.airDashUsed&&dist>170&&dist<380&&Math.random()<(level==='hard'?.024:level==='normal'?.012:.004)){f.airDash=15;f.airDashUsed=true;f.airDashDir=dx;f.vy=0;burst(f.x,f.y-85,0x8fe9ff,45,'dash');particleEmitter(f.x,f.y-90,'dash',330)}
+if(!f.move&&f.ground&&dist>115&&dist<245&&rich&&Math.random()<(chip?.012:level==='hard'?.008:.004)){f.vy=f.kind==='chip'?-10.9:-15.5;f.ground=false;f.airDashUsed=false;if(chip)f.flightMode='jump';setState(f,'jump')}else if(!f.ground&&!f.airDashUsed&&dist>170&&dist<380&&edgeRoom>70&&Math.random()<(chip?.045:level==='hard'?.024:level==='normal'?.012:.004)){f.airDash=15;f.airDashUsed=true;f.airDashDir=dx;f.vy=0;burst(f.x,f.y-85,0x8fe9ff,45,'dash');particleEmitter(f.x,f.y-90,'dash',330)}
 }
 
 function body(f){return[{x:f.x-35,y:f.y-181,w:70,h:179},{x:f.x-23,y:f.y-183,w:46,h:56}]}
