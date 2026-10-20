@@ -373,7 +373,7 @@ function heading(title,subtitle=''){return '<div class="menuHead"><div><small>BR
 function showGamePanel(page){menuVisible=true;menuPage=page;menuFocus=0;paused=page==='pause'||page==='pauseSettings'||page==='commands';shell.classList.remove('hidden');battleIntro.classList.remove('active');renderMenu()}
 function hideGamePanel(){menuVisible=false;shell.classList.add('hidden');paused=false;held.clear();edge.clear();dashTap.clear()}
 function menuSwap(page){if(menuBusy)return;menuBusy=true;menuWipe.classList.add('closed');setTimeout(()=>{showGamePanel(page);menuWipe.classList.remove('closed');setTimeout(()=>menuBusy=false,250)},250)}
-function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.menuSetting button,button.menuSetting select'))}
+function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.rosterSlot:not(:disabled),button.menuSetting button,button.menuSetting select'))}
 function focusMenu(i){const list=choices();if(!list.length)return;menuFocus=(i+list.length)%list.length;list.forEach((el,j)=>el.classList.toggle('focused',j===menuFocus));list[menuFocus].scrollIntoView({block:'nearest',inline:'nearest'});updatePreview()}
 function updatePreview(){const el=choices()[menuFocus],id=el?.dataset.character,c=chars.find(x=>x.id===id),p=document.getElementById('activeFighter');if(!p)return;p.querySelector('h3').textContent=c?.name||(id==='random'?'ALEATÓRIO':'SELECIONE');p.querySelector('p').textContent=c?(c[gamePrefs.lang]||c.special):'◈'}
 function renderMenu(){let html='',t=tr;
