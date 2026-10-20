@@ -126,7 +126,7 @@ const blocked=b.guard&&b.ground&&!b.guardBroken&&b.face===-a.face;
 let dmg=blocked?Math.ceil(m.damage*.15):m.damage;
 if(!firstStrike){firstStrike=true;notify(a.id,'FIRST STRIKE','gold')}
 if(!blocked&&a.comboTime>0&&a.combo>=1)notify(a.id,(a.combo+1)+' HIT COMBO','combo');
-b.hp=Math.max(0,b.hp-dmg);b.stun=blocked?m.block:m.stun;b.vx=a.face*(blocked?2:m.push);b.move=null;b.airDash=0;b.dash=0;b.flash=8;
+b.hp=Math.max(0,b.hp-dmg);b.stun=blocked?m.block:m.stun;b.vx=a.face*(blocked?2:m.push);b.move=null;b.airDash=0;b.dash=0;b.flash=8;if(b.kind==='chip'&&!b.ground){b.flightMode='descend';b.hover=false;}
 if(blocked){b.stamina=Math.max(0,b.stamina-(m.damage*1.65+(m.name==='heavy'?7:0)));b.regenDelay=30;
 if(b.stamina<=0){b.guardBroken=true;b.guard=false;b.stun=72;setState(b,'guardbreak');shake=25;announce('GUARD BREAK!',92);notify(a.id,'GUARD CRUSH','break');notify(b.id,'GUARD BROKEN','danger');cinematic(b.x,b.y-120,'break');burst(b.x,b.y-115,0xffffff,30,'dash')}
 else{setState(b,'guardhit');particleEmitter(b.x+b.face*32,b.y-125,'guard',280);rings.push({x:b.x+b.face*32,y:b.y-125,r:9,age:0,max:17,kind:'guard'});burst(b.x+b.face*32,b.y-130,0x73caff,24,'spark')}}
