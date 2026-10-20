@@ -26,7 +26,7 @@ try{const E=window.ParticleEmitter.Emitter,config={lifetime:{min:.16,max:kind===
 }
 function cinematic(x,y,kind='impact'){cinemaKind=kind;cinemaFreeze=kind==='break'?13:kind==='heavy'?9:kind==='fire'?7:5;cinemaHold=kind==='break'?54:kind==='heavy'?25:kind==='fire'?24:17;zoomTime=Math.max(zoomTime,kind==='break'?35:20);flashScreen=Math.max(flashScreen,kind==='break'?19:9);rings.push({x,y,r:kind==='break'?18:10,age:0,max:kind==='break'?47:23,kind});particleEmitter(x,y,kind==='break'?'break':'impact',kind==='break'?650:350);burst(x,y,kind==='break'?0x80dcff:0xffca65,kind==='break'?85:48,'spark')}
 
-function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,hitStreak:0,lastHitTick:-999,panicPending:false,panicCooldown:0,panicEscape:false,spaceTimer:0,spaceDir:0,spaceCooldown:0,tactic:'attack',tacticUntil:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
+function make(id,x){const kind=document.getElementById(id?'char2':'char1').value;let spr=new PIXI.Sprite(sheets[kind]?.[0]?.[0]||PIXI.Texture.WHITE);spr.anchor.set(.5,.91);spr.scale.set(SCALE*(kind==='chip'?.828:1)*(id?-1:1),SCALE*(kind==='chip'?.828:1));fighterLayer.addChild(spr);return{id,kind,x,y:FLOOR,vx:0,vy:0,face:id?-1:1,hp:100,meter:0,stamina:100,guardBroken:false,regenDelay:0,ground:true,crouch:false,guard:false,state:'idle',t:0,move:null,hit:false,stun:0,stop:0,combo:0,comboTime:0,flash:0,ai:{state:'observe',timer:0,cooldown:0,dashCooldown:0,zoneCooldown:0,zoneTimer:0,escapeCooldown:0,escapeDir:0,escapeFrames:0,guardHold:0,moveCommit:0,moveDir:0,moveCooldown:0,hitStreak:0,lastHitTick:-999,panicPending:false,panicCooldown:0,panicEscape:false,spaceTimer:0,spaceDir:0,spaceCooldown:0,tactic:'attack',tacticUntil:0,matchupCooldown:0,airPlan:0,cautious:false,cautionTimer:0},dash:0,dashDir:0,airDash:0,airDashUsed:false,airDashDir:0,airTrail:0,hover:false,flightMode:'ground',flightY:FLOOR-140,flightLock:0,diving:false,boost:0,boostCast:0,comboPlan:0,comboGap:0,fxMoving:false,koFalling:false,koLanded:false,koBounce:false,sprite:spr}}
 function clearCombatVFX(){
  particles.length=0;projectiles.length=0;rings.length=0;chipFields.length=0;
  for(const item of vfxEmitters){try{item.em.emit=false;item.em.destroy()}catch(e){}}
@@ -141,8 +141,11 @@ function ai(f,enemy){
   q.tactic=Math.random()<attackWeight?'attack':'defend';
   q.tacticUntil=tick+180;q.spaceTimer=0;q.moveCommit=0;
  }
- const aggressive=q.tactic==='attack';
+ const vsJefrey=enemy.kind==='jefrey'&&f.kind!=='jefrey';
+ const aggressive=q.tactic==='attack'&&!vsJefrey;
+ if(vsJefrey&&tick>=q.tacticUntil-179){q.spaceTimer=0;q.moveCommit=0}
  q.cooldown=Math.max(0,q.cooldown-1);q.dashCooldown=Math.max(0,(q.dashCooldown||0)-1);q.zoneCooldown=Math.max(0,(q.zoneCooldown||0)-1);q.zoneTimer=Math.max(0,(q.zoneTimer||0)-1);q.escapeCooldown=Math.max(0,(q.escapeCooldown||0)-1);q.guardHold=Math.max(0,(q.guardHold||0)-1);
+ q.matchupCooldown=Math.max(0,(q.matchupCooldown||0)-1);q.airPlan=Math.max(0,(q.airPlan||0)-1);
  q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);q.panicCooldown=Math.max(0,(q.panicCooldown||0)-1);q.spaceCooldown=Math.max(0,(q.spaceCooldown||0)-1);
  if(!canAct(f))return;
  // Preserve active dash momentum: the normal AI decision loop must not overwrite it.
@@ -183,20 +186,26 @@ function ai(f,enemy){
   if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.85;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.spaceTimer=0;
  }
+ // Matchup-specific counterplay: change angles rather than trade stamina point blank.
+ if(vsJefrey&&f.ground&&q.matchupCooldown===0&&f.stamina>29&&p.dist<325&&(p.dist<175||p.backward<140||enemy.boost>0)&&Math.random()<(f.kind==='chip'?.085:.045)){
+  q.matchupCooldown=110+Math.floor(Math.random()*95);q.airPlan=65;
+  if(f.kind==='chip'){if(chipHop(f))return}
+  else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;setState(f,'jump');return}
+ }
  // Wesley occasionally shifts to ranged zoning when outdistanced or badly losing the life trade.
  // Persistent short-term state prevents frame-by-frame indecision; cooldown prevents spam.
  if(f.kind==='wesley'&&f.ground){
   const losingBadly=f.hp<=42&&enemy.hp>=f.hp+32;
-  const distant=p.dist>390;
-  if(q.zoneTimer===0&&q.zoneCooldown===0&&(distant||losingBadly&&p.dist>165)&&f.stamina>=staminaCost(f,M.fire.cost)+8&&Math.random()<(level==='hard'?.035:level==='easy'?.012:.023)){
+  const distant=p.dist>(vsJefrey?215:390);
+  if(q.zoneTimer===0&&q.zoneCooldown===0&&(distant||losingBadly&&p.dist>165)&&f.stamina>=staminaCost(f,M.fire.cost)+8&&Math.random()<(vsJefrey?.075:level==='hard'?.035:level==='easy'?.012:.023)){
    q.zoneTimer=110+Math.floor(Math.random()*65);
    q.zoneCooldown=310+Math.floor(Math.random()*130);
   }
   if(q.zoneTimer>0&&!p.threat&&(!aggressive||p.dist>265)){
-   const desired=losingBadly?355:305;
+   const desired=vsJefrey?335:losingBadly?355:305;
    if(p.dist<desired-45&&p.backward>90){f.vx=-p.dir*speed*.85;setState(f,'back');return}
    if(p.dist>desired+155&&p.forward>90){f.vx=p.dir*speed*.7;setState(f,'walk');return}
-   if(p.dist>=195&&can('fire')&&q.cooldown===0){
+   if(p.dist>=(vsJefrey?170:195)&&can('fire')&&q.cooldown===0){
     if(attack(f,'fire')){q.cooldown=85;q.zoneTimer=Math.max(q.zoneTimer,85);return}
    }
    if(p.dist<160&&p.backward<=90)q.zoneTimer=0;
@@ -228,6 +237,11 @@ function ai(f,enemy){
   if(q.escapeFrames>0){q.escapeFrames--;f.vx=q.escapeDir*speed*1.3;
    if(!f.airDashUsed&&q.escapeFrames<18&&f.y<FLOOR-65){f.airDash=14;f.airDashDir=q.escapeDir;f.airDashUsed=true;f.vy=Math.min(f.vy,0)}
    setState(f,'jump');return}
+  if(vsJefrey&&q.airPlan>0){
+   if(f.kind==='chip'&&f.y<enemy.y-45&&p.dist<225&&can('heavy')&&q.cooldown===0&&Math.random()<.22&&aiStrikeDive(f)){q.cooldown=24;q.airPlan=0;return}
+   if(!f.airDashUsed&&p.dist<280&&f.y<enemy.y-55&&Math.random()<.13){f.airDash=14;f.airDashDir=p.dir;f.airDashUsed=true;f.vy=Math.min(f.vy,0)}
+   f.vx=p.dist>80?p.dir*speed*1.12:p.dir*speed*.75;setState(f,'jump');return;
+  }
   if(f.kind==='chip'){
    if(!p.low&&p.dist<245&&f.y<enemy.y-35&&can('heavy')&&Math.random()<.33&&aiStrikeDive(f)){q.cooldown=30;return}
    if(!p.low&&f.vy>0&&f.y>235&&p.dist<390&&Math.random()<(level==='hard'?.13:.095)&&chipHop(f))return;
@@ -256,8 +270,8 @@ function ai(f,enemy){
   setState(f,f.vx?(f.vx*p.dir>0?'walk':'back'):'idle');return;
  }
  // Every fighter can punish and attack; opponent-specific checks never bypass this.
- if(p.dist<(aggressive?205:180)&&q.cooldown===0&&aiStrike(f,p,level))return;
- if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<260&&(p.threat||p.enemyAir||enemy.x<155||enemy.x>W-155)&&Math.random()<.13){
+ if(p.dist<(aggressive?205:180)&&q.cooldown===0&&(!vsJefrey||p.dist<145||p.enemyRecover)&&aiStrike(f,p,level))return;
+ if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<(vsJefrey?315:260)&&(vsJefrey||p.threat||p.enemyAir||enemy.x<155||enemy.x>W-155)&&Math.random()<(vsJefrey?.095:.13)){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
  if(f.kind==='jefrey'&&f.ground&&p.dist>355&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
@@ -267,6 +281,7 @@ function ai(f,enemy){
   if(f.kind==='chip'){if(chipHop(f)){q.cooldown=14;return}}
   else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;if(f.kind==='jefrey')jefreySmoke(f);setState(f,'jump');q.cooldown=12;return}
  }
+ if(vsJefrey&&f.kind==='wesley'&&p.dist<215&&p.backward>110&&q.matchupCooldown===0){q.matchupCooldown=75;q.spaceDir=-p.dir;q.spaceTimer=32;f.vx=-p.dir*speed;setState(f,'back');return}
  if(p.dist>preferred+35){
   if(p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<(aggressive?(f.kind==='jefrey'?.72:.55):(f.kind==='jefrey'?.34:.22))&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
   if(p.dist>285&&aiDash(f,p,profile,level))return;
