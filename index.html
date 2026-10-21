@@ -312,8 +312,8 @@ function aiStrikeDive(f){
  return attack(f,'heavy');
 }
 
-function body(f){return[{x:f.x-35,y:f.y-181,w:70,h:179},{x:f.x-23,y:f.y-183,w:46,h:56}]}
-function push(f){return{x:f.x-30,y:f.y-82,w:60,h:80}}
+function body(f){const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
+function push(f){const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
 function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
 
 function intersect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
@@ -330,7 +330,7 @@ const blocked=b.guard&&b.ground&&!b.guardBroken&&b.face===-a.face;
 let dmg=(blocked?Math.ceil(m.damage*.15):m.damage)*.85;
 if(!firstStrike){firstStrike=true;notify(a.id,'FIRST STRIKE','gold')}
 if(!blocked&&a.comboTime>0&&a.combo>=1)notify(a.id,(a.combo+1)+' HIT COMBO','combo');
-b.hp=Math.max(0,b.hp-dmg);b.stun=(blocked?m.block:m.stun)+(b.kind==='jefrey'?30:0);b.vx=a.face*(blocked?2:m.push)*(b.kind==='jefrey'?1.45:1);if(b.kind==='jefrey')b.boostCast=0;if(a.kind==='jefrey')jefreyLightning(b.x,b.y-120);b.move=null;b.diving=false;b.flightLock=0;b.airDash=0;b.dash=0;b.flash=8;if(b.kind==='chip'&&!b.ground){b.flightMode='descend';b.hover=false;}
+b.hp=Math.max(0,b.hp-dmg);b.stun=(blocked?m.block:m.stun)+(b.kind==='jefrey'?30:0);b.vx=a.face*(blocked?2:m.push)*(b.kind==='jefrey'?1.45:1);if(a.kind==='vertonal'&&!projectile&&!blocked){const dir=Math.sign(b.x-a.x)||a.face;b.vx=dir*Math.max(12,m.push*2.1);b.vy=-5.4;b.ground=false;b.airDash=0;b.dash=0;b.flightMode='ground';b.hover=false;musicParticle(b.x,b.y-105,4);rings.push({x:b.x,y:b.y-110,r:24,age:0,max:19,kind:'music'})}if(b.kind==='jefrey')b.boostCast=0;if(a.kind==='jefrey')jefreyLightning(b.x,b.y-120);b.move=null;b.diving=false;b.flightLock=0;b.airDash=0;b.dash=0;b.flash=8;if(b.kind==='chip'&&!b.ground){b.flightMode='descend';b.hover=false;}
 if(blocked){b.stamina=Math.max(0,b.stamina-staminaCost(b,m.damage*1.65+(m.name==='heavy'?7:0)));b.regenDelay=30;
 if(b.stamina<=0){b.guardBroken=true;b.guard=false;b.stun=72;setState(b,'guardbreak');shake=25;announce('GUARD BREAK!',92);notify(a.id,'GUARD CRUSH','break');notify(b.id,'GUARD BROKEN','danger');cinematic(b.x,b.y-120,'break');burst(b.x,b.y-115,0xffffff,60,'dash');burst(b.x,b.y-120,0x76d9ff,45,'spark')}
 else{setState(b,'guardhit');particleEmitter(b.x+b.face*32,b.y-125,'guard',280);rings.push({x:b.x+b.face*32,y:b.y-125,r:9,age:0,max:17,kind:'guard'});burst(b.x+b.face*32,b.y-130,0x73caff,24,'spark')}}
