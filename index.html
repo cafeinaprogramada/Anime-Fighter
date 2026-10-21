@@ -139,11 +139,11 @@ function ai(f,enemy){
   const hurt=f.hp<enemy.hp-18,close=p.dist<245,healthy=f.stamina>24;
   const attackWeight=Math.min(.92,.75+(close?.08:0)+(healthy?.05:0)-(hurt?.08:0));
   q.tactic=Math.random()<attackWeight?'attack':'defend';
-  q.tacticUntil=tick+180;q.spaceTimer=0;q.moveCommit=0;
+  q.tacticUntil=tick+180; /* Retain movement commitment across tactical changes. */
  }
  const vsJefrey=enemy.kind==='jefrey'&&f.kind!=='jefrey';
  const aggressive=q.tactic==='attack'&&!vsJefrey;
- if(vsJefrey&&tick>=q.tacticUntil-179){q.spaceTimer=0;q.moveCommit=0}
+ if(vsJefrey&&tick>=q.tacticUntil-179){q.zoneCooldown=Math.max(q.zoneCooldown,15)}
  q.cooldown=Math.max(0,q.cooldown-1);q.dashCooldown=Math.max(0,(q.dashCooldown||0)-1);q.zoneCooldown=Math.max(0,(q.zoneCooldown||0)-1);q.zoneTimer=Math.max(0,(q.zoneTimer||0)-1);q.escapeCooldown=Math.max(0,(q.escapeCooldown||0)-1);q.guardHold=Math.max(0,(q.guardHold||0)-1);
  q.matchupCooldown=Math.max(0,(q.matchupCooldown||0)-1);q.airPlan=Math.max(0,(q.airPlan||0)-1);
  q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);q.panicCooldown=Math.max(0,(q.panicCooldown||0)-1);q.spaceCooldown=Math.max(0,(q.spaceCooldown||0)-1);
@@ -172,7 +172,7 @@ function ai(f,enemy){
  }
  if(f.ground&&q.guardHold>0&&!f.guardBroken&&f.stamina>12&&(!aggressive||p.threat||q.guardHold>35)){q.moveCommit=0;f.guard=true;f.dash=0;setState(f,'guard');return}
  // Commit to one spacing decision for several frames; only urgent defense interrupts it.
- if(f.ground&&q.moveCommit>0&&!aggressive){
+ if(f.ground&&q.moveCommit>0&&!aggressive&&!p.threat){
   const room=q.moveDir>0?W-45-f.x:f.x-45;
   if(room>42){q.moveCommit--;f.vx=q.moveDir*speed*.95;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.moveCommit=0;
@@ -180,7 +180,7 @@ function ai(f,enemy){
 
  // All fighters keep a stable movement decision until its duration expires.
  // Do not suppress an immediate attack opportunity while walking into striking range.
- if(f.ground&&q.spaceTimer>0&&!aggressive){
+ if(f.ground&&q.spaceTimer>0&&!aggressive&&!p.threat){
   if(p.dist<155&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
   const room=q.spaceDir>0?W-45-f.x:f.x-45;
   if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.85;setState(f,f.vx*p.dir>0?'walk':'back');return}
@@ -282,7 +282,7 @@ function ai(f,enemy){
   else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;if(f.kind==='jefrey')jefreySmoke(f);setState(f,'jump');q.cooldown=12;return}
  }
  if(vsJefrey&&f.kind==='wesley'&&p.dist<215&&p.backward>110&&q.matchupCooldown===0){q.matchupCooldown=75;q.spaceDir=-p.dir;q.spaceTimer=32;f.vx=-p.dir*speed;setState(f,'back');return}
- if(p.dist>preferred+35){
+ if(p.dist>preferred+55){
   if(p.dist>195&&p.forward>135&&q.moveCooldown===0&&Math.random()<(aggressive?(f.kind==='jefrey'?.72:.55):(f.kind==='jefrey'?.34:.22))&&aiDirectionalDash(f,p.dir,profile,level)){q.moveCooldown=45;return}
   if(p.dist>285&&aiDash(f,p,profile,level))return;
   if(q.spaceTimer===0&&q.spaceCooldown===0){q.spaceDir=p.dir;q.spaceTimer=32+Math.floor(Math.random()*22);q.spaceCooldown=55}
@@ -388,13 +388,17 @@ function render(){fxClock++;for(let f of fighters)animation(f);
   if(h>.1){transitionG.rect(0,0,W,h).fill(0x030305);transitionG.rect(0,H-h,W,h).fill(0x030305)}
   if(transitionMode==='opening'&&transitionAge>=21)transitionMode='none';
  }
-hudG.clear();for(let i=0;i<2;i++){let f=fighters[i],x=i?W-424:24;hudG.roundRect(x-4,40,408,36,3).fill(0x070e1c);hudG.roundRect(x-2,42,404,31,2).stroke({color:0xd5b77a,width:2});hudG.roundRect(x,46,400,23,2).fill(0x1a2132);let w=f?396*f.hp/100:396;hudG.roundRect(i?x+398-w:x+2,48,w,19,2).fill(f&&f.hp<25?0xf45c65:0xf2bf62);hudG.rect(x+2,48,396,3).fill({color:0xffffff,alpha:.18});for(let k=1;k<10;k++)hudG.rect(x+k*40,48,1,19).fill({color:0x121b29,alpha:.22});hudG.roundRect(x-2,78,256,17,2).fill(0x0b1321);hudG.roundRect(x-1,79,254,15,2).stroke({color:0x7b8b9e,width:1});hudG.roundRect(x+2,82,f?246*f.stamina/100:0,9,1).fill(f&&f.guardBroken?0xff5566:0x5fd3e9);for(let k=1;k<5;k++)hudG.rect(x+2+k*49,82,1,9).fill({color:0x101b2d,alpha:.55});if(f?.kind==='jefrey'&&f.boost>0){hudG.roundRect(x-2,98,256,9,2).fill(0x0b1321);hudG.roundRect(x,100,250*f.boost/600,5,1).fill(0xffeb73)}for(let k=0;k<wins[i];k++){hudG.moveTo((i?W-35:35)+(i?-1:1)*k*22,111).lineTo((i?W-35:35)+(i?-1:1)*k*22+7,118).lineTo((i?W-35:35)+(i?-1:1)*k*22,125).lineTo((i?W-35:35)+(i?-1:1)*k*22-7,118).closePath().fill(0xffd36c)}}clock.text=String(time);for(let side=0;side<2;side++){const entries=feedback[side];for(let j=entries.length-1;j>=0;j--){entries[j].age++;if(entries[j].age>entries[j].life)entries.splice(j,1)}}screenFX.clear();for(let i=rings.length-1;i>=0;i--){let q=rings[i];q.age++;let a=1-q.age/q.max;if(a<=0){rings.splice(i,1);continue}let rad=q.r+q.age*(q.kind==='break'?6:4);screenFX.circle(q.x,q.y,rad).stroke({color:q.kind==='break'?0x5fcfff:q.kind==='chip'?0xffe680:q.kind==='guard'?0x78ddff:0xffdb8d,width:(q.kind==='break'?13:8)*a,alpha:a*.85});screenFX.circle(q.x,q.y,rad*.72).stroke({color:0xffffff,width:3*a,alpha:a*.7})}if(cinemaHold>0){cinemaHold--;let a=Math.min(1,cinemaHold/12);screenFX.rect(0,0,W,cinemaKind==='break'?33:17).fill({color:0x080e1d,alpha:a*.94});screenFX.rect(0,H-(cinemaKind==='break'?33:17),W,cinemaKind==='break'?33:17).fill({color:0x080e1d,alpha:a*.94})}score.text='●'.repeat(wins[0])+'  —  '+'●'.repeat(wins[1]);banner.text=paused?'PAUSADO':phase==='select'?'BREADS ON FIRE - BRAVE FIGHTERS · SELECT ROSTER':phase==='over'?announced:calloutTime>0?callout:phase==='result'?announced:'';subBanner.text='';banner.scale.set(calloutTime>0?1+Math.sin((70-calloutTime)*.13)*.035:1);if(flashScreen>0){hudG.rect(0,0,W,H).fill({color:0xffffff,alpha:Math.min(.22,flashScreen*.016)})}combo.text=fighters[0]?.combo>1?fighters[0].combo+' HIT COMBO':fighters[1]?.combo>1?fighters[1].combo+' HIT COMBO':''}
+hudG.clear();for(let i=0;i<2;i++){let f=fighters[i],x=i?W-424:24;hudG.roundRect(x-4,40,408,36,3).fill(0x070e1c);hudG.roundRect(x-2,42,404,31,2).stroke({color:0xd5b77a,width:2});hudG.roundRect(x,46,400,23,2).fill(0x1a2132);let w=f?396*f.hp/100:396;hudG.roundRect(i?x+398-w:x+2,48,w,19,2).fill(f&&f.hp<25?0xf45c65:0xf2bf62);hudG.rect(x+2,48,396,3).fill({color:0xffffff,alpha:.18});for(let k=1;k<10;k++)hudG.rect(x+k*40,48,1,19).fill({color:0x121b29,alpha:.22});hudG.roundRect(x-2,78,256,17,2).fill(0x0b1321);hudG.roundRect(x-1,79,254,15,2).stroke({color:0x7b8b9e,width:1});hudG.roundRect(x+2,82,f?246*f.stamina/100:0,9,1).fill(f&&f.guardBroken?0xff5566:0x5fd3e9);for(let k=1;k<5;k++)hudG.rect(x+2+k*49,82,1,9).fill({color:0x101b2d,alpha:.55});if(f?.kind==='jefrey'&&f.boost>0){hudG.roundRect(x-2,98,256,9,2).fill(0x0b1321);hudG.roundRect(x,100,250*f.boost/600,5,1).fill(0xffeb73)}for(let k=0;k<wins[i];k++){hudG.moveTo((i?W-35:35)+(i?-1:1)*k*22,111).lineTo((i?W-35:35)+(i?-1:1)*k*22+7,118).lineTo((i?W-35:35)+(i?-1:1)*k*22,125).lineTo((i?W-35:35)+(i?-1:1)*k*22-7,118).closePath().fill(0xffd36c)}}clock.text=gamePrefs.roundTime===-1?'∞':String(time);for(let side=0;side<2;side++){const entries=feedback[side];for(let j=entries.length-1;j>=0;j--){entries[j].age++;if(entries[j].age>entries[j].life)entries.splice(j,1)}}screenFX.clear();for(let i=rings.length-1;i>=0;i--){let q=rings[i];q.age++;let a=1-q.age/q.max;if(a<=0){rings.splice(i,1);continue}let rad=q.r+q.age*(q.kind==='break'?6:4);screenFX.circle(q.x,q.y,rad).stroke({color:q.kind==='break'?0x5fcfff:q.kind==='chip'?0xffe680:q.kind==='guard'?0x78ddff:0xffdb8d,width:(q.kind==='break'?13:8)*a,alpha:a*.85});screenFX.circle(q.x,q.y,rad*.72).stroke({color:0xffffff,width:3*a,alpha:a*.7})}if(cinemaHold>0){cinemaHold--;let a=Math.min(1,cinemaHold/12);screenFX.rect(0,0,W,cinemaKind==='break'?33:17).fill({color:0x080e1d,alpha:a*.94});screenFX.rect(0,H-(cinemaKind==='break'?33:17),W,cinemaKind==='break'?33:17).fill({color:0x080e1d,alpha:a*.94})}score.text='●'.repeat(wins[0])+'  —  '+'●'.repeat(wins[1]);banner.text=paused?'PAUSADO':phase==='select'?'BREADS ON FIRE - BRAVE FIGHTERS · SELECT ROSTER':phase==='over'?announced:calloutTime>0?callout:phase==='result'?announced:'';subBanner.text='';banner.scale.set(calloutTime>0?1+Math.sin((70-calloutTime)*.13)*.035:1);if(flashScreen>0){hudG.rect(0,0,W,H).fill({color:0xffffff,alpha:Math.min(.22,flashScreen*.016)})}combo.text=fighters[0]?.combo>1?fighters[0].combo+' HIT COMBO':fighters[1]?.combo>1?fighters[1].combo+' HIT COMBO':''}
 const notices=new PIXI.Container();ui.addChild(notices);
 const noticeGraphics=new PIXI.Graphics();notices.addChild(noticeGraphics);
 const noticeLabels=Array.from({length:2},()=>Array.from({length:3},()=>{let t=new PIXI.Text({text:'',style:{fontFamily:'Arial',fontSize:10,fontWeight:'700',letterSpacing:.7,fill:0xffffff,stroke:{color:0x070d1b,width:2}}});t.anchor.set(.5);notices.addChild(t);return t}));
 function drawFeedback(){noticeGraphics.clear();for(let side=0;side<2;side++){for(let j=0;j<3;j++){const n=feedback[side][j],t=noticeLabels[side][j];if(!n){t.visible=false;continue}t.visible=true;const fade=Math.max(0,Math.min(1,n.age/7,(n.life-n.age)/13)),slide=(1-Math.min(1,n.age/13))*18,x=(side===0?24:W-24)+(side===0?1:-1)*(144-slide),y=120+j*29;const col=n.tone==='break'?0x62dcff:n.tone==='danger'?0xff6e82:n.tone==='fire'?0xffa64c:n.tone==='combo'?0xf9db85:0xffd17c;noticeGraphics.roundRect(x-140,y-12,280,24,3).fill({color:0x0b1428,alpha:.7*fade});noticeGraphics.roundRect(x-140,y-12,280,24,3).stroke({color:col,width:1,alpha:.8*fade});noticeGraphics.rect(x-140,y-10,3,20).fill({color:col,alpha:fade});t.text=n.message;t.position.set(x,y);t.alpha=fade}}}
 // UI / NAVIGATION: isolated DOM overlay, leaving Pixi world and HUD independent.
 const style=document.createElement('style');style.textContent=`
+#gameShell:not(.hidden) #menuContent:after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#ffe6aa 0 1.5px,#f78235aa 2px,transparent 5px),radial-gradient(circle,#ffbc69 0 2px,transparent 6px);background-size:131px 167px,173px 193px;background-position:20px 0,80px 35px;opacity:.45;animation:menuEmbers 13s linear infinite}
+@keyframes menuEmbers{from{background-position:20px 0,80px 35px}to{background-position:90px -500px,30px -620px}}
+#gameShell .menuHead,#gameShell .menuGrid,#gameShell .menuSettings,#gameShell .menuCards,#gameShell .fighterSelect,#gameShell .wikiLayout{position:relative;z-index:1}
+
 #gameShell{position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;transform:none!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;border:0!important;border-radius:0!important;box-shadow:none!important}
 #menuContent{padding:clamp(12px,2.5vw,38px)}
 #menuContent:before{content:'';position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(#ffb86199 1.5px,transparent 3px);background-size:81px 107px;opacity:.17}
