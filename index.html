@@ -452,8 +452,13 @@ body{background:radial-gradient(circle at 80% 0%,#47231d,#100c16 65%);text-trans
 #battleIntro .ready{font-size:clamp(14px,2vw,24px);letter-spacing:5px;animation:versusIn .8s .2s both}
 @keyframes versusIn{from{opacity:0;transform:translateX(-80px) skewX(-12deg) scale(1.15)}to{opacity:1;transform:none}}
 @media(max-width:650px){.menuGrid{gap:7px}.menuTile.big,.menuTile.side,.menuTile{grid-column:span 12;min-height:70px;padding:12px}.menuTile.big{min-height:95px}.menuCards,.menuCards.characters{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.menuCards .menuTile{min-height:75px}.menuSettings{grid-template-columns:1fr}#menuContent{gap:8px}.menuHead h2{font-size:30px}}
+/* FINAL OVERRIDE: prevent legacy aspect-ratio menu rules from winning the cascade. */
+#gameShell{position:fixed!important;inset:0!important;top:0!important;left:0!important;right:0!important;bottom:0!important;transform:none!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;z-index:10000!important}
+#gameShell.hidden{display:none!important}
+#menuContent,#battleIntro,#menuWipe{width:100%;max-width:100%}
+body:has(#gameShell:not(.hidden)){overflow:hidden}
 `;document.head.appendChild(style);
-const shell=document.createElement('div');shell.id='gameShell';document.getElementById('stage').appendChild(shell);
+const shell=document.createElement('div');shell.id='gameShell';document.body.appendChild(shell);
 shell.innerHTML='<div id="menuContent"></div><div id="battleIntro"><div class="emberField" id="emberField"></div><div class="ready">BREADS ON FIRE · O DUELO COMEÇA</div><div class="versus" id="versusNames"></div></div><div id="menuWipe"><div class="wipeTop"></div><div class="wipeBottom"></div></div>';
 const menuContent=document.getElementById('menuContent'),menuWipe=document.getElementById('menuWipe'),battleIntro=document.getElementById('battleIntro');
 const chars=[{id:'wesley',name:'WESLEY',special:'PROJÉTIL DE FOGO',en:'FIRE PROJECTILE',es:'PROYECTIL DE FUEGO'},{id:'chip',name:'CHIP',special:'CAMPO RADIANTE',en:'RADIANT FIELD',es:'CAMPO RADIANTE'},{id:'jefrey',name:'JEFREY',special:'FOCO RELÂMPAGO',en:'LIGHTNING FOCUS',es:'ENFOQUE RELÁMPAGO'}];
