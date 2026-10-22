@@ -3,6 +3,7 @@
 const W=1200,H=594,FLOOR=493,FPS=60,GRAV=.65,SCALE=2.6;
 const M={punch:{cost:12,row:6,start:18,active:5,recover:13,damage:8,reach:103,high:74,stun:17,block:11,push:4},kick:{cost:17,row:5,start:21,active:6,recover:17,damage:12,reach:136,high:50,stun:19,block:13,push:6},heavy:{cost:27,row:4,start:29,active:6,recover:21,damage:17,reach:125,high:74,stun:23,block:15,push:8},fire:{cost:50,row:7,start:28,active:2,recover:24,damage:13,reach:0,high:80,stun:21,block:14,push:6}};
 const control=[{l:'KeyA',r:'KeyD',u:'KeyW',d:'KeyS',guard:'KeyR',punch:'KeyF',kick:'KeyG',heavy:'KeyH',fire:'KeyJ'},{l:'ArrowLeft',r:'ArrowRight',u:'ArrowUp',d:'ArrowDown',guard:'KeyP',punch:'KeyU',kick:'KeyI',heavy:'KeyO',fire:'KeyL'}];
+const playerDevices=['keyboard0','keyboard1'];let deviceDraft=['keyboard0','keyboard1'];
 const gamePrefs={lang:'pt',particles:true,afterimages:true,shake:true,quality:'high',roundTime:99,stage:'rooftop',debug:false,staminaSpeed:'regular'};
 const app=new PIXI.Application();try{await app.init({width:W,height:H,background:0x111a2c,antialias:false});document.getElementById('stage').appendChild(app.canvas)}catch(e){document.getElementById('status').textContent=e.message;return}
 const scene=new PIXI.Container(),effects=new PIXI.Container(),ui=new PIXI.Container(),cinema=new PIXI.Container();app.stage.addChild(scene,effects,ui,cinema);
@@ -43,7 +44,7 @@ function clearCombatVFX(){
  vfxLayer.removeChildren().forEach(c=>c.destroy());
  screenFX.clear();cinemaFreeze=0;cinemaHold=0;flashScreen=0;shake=0;zoomTime=0;
 }
-function reset(){app.canvas.style.visibility='visible';clearCombatVFX();transitionMode='opening';transitionAge=0;koGroundFrames=0;cameraX=W/2;cameraY=H/2;cameraZoom=1.08;cameraTilt=0;feedback=[[],[]];firstStrike=false;fighterLayer.removeChildren().forEach(x=>x.destroy());afterimageLayer.removeChildren().forEach(x=>x.destroy());projLayer.removeChildren().forEach(x=>x.destroy());fighters=[make(0,315),make(1,885)];l1.text=fighters[0].kind.toUpperCase();l2.text=fighters[1].kind.toUpperCase();projectiles=[];particles=[];time=gamePrefs.roundTime;wait=215;phase='fight';announced='ROUND '+round;callout='';calloutTime=0;after=0;paused=false;held.clear();edge.clear();dashTap.clear()}
+function reset(){padDisconnectNotice.clear();app.canvas.style.visibility='visible';clearCombatVFX();transitionMode='opening';transitionAge=0;koGroundFrames=0;cameraX=W/2;cameraY=H/2;cameraZoom=1.08;cameraTilt=0;feedback=[[],[]];firstStrike=false;fighterLayer.removeChildren().forEach(x=>x.destroy());afterimageLayer.removeChildren().forEach(x=>x.destroy());projLayer.removeChildren().forEach(x=>x.destroy());fighters=[make(0,315),make(1,885)];l1.text=fighters[0].kind.toUpperCase();l2.text=fighters[1].kind.toUpperCase();projectiles=[];particles=[];time=gamePrefs.roundTime;wait=215;phase='fight';announced='ROUND '+round;callout='';calloutTime=0;after=0;paused=false;held.clear();edge.clear();dashTap.clear()}
 function start(){round=1;wins=[0,0];tick=0;reset()}
 function setState(f,s){if(f.state!==s){f.state=s;f.t=0}}
 function notify(id,message,tone='gold'){const stack=feedback[id];if(!stack)return;stack.unshift({message,tone,age:0,life:72});if(stack.length>3)stack.length=3}
@@ -69,6 +70,58 @@ function jefreyLightning(x,y){burst(x,y,0xfff27a,38,'dash');burst(x,y,0xffffff,2
 function canAct(f){return !f.shock&&f.stun<=0&&!f.move&&f.state!=='attack'&&f.state!=='hurt'&&f.state!=='guardbreak'&&f.state!=='ko'}
 function attack(f,key){if(!canAct(f)||(!f.ground&&f.kind!=='chip'&&f.kind!=='jefrey'&&!(f.kind==='salvador'&&key==='fire'))||f.stamina<attackCost(f,key))return false;f.stamina-=attackCost(f,key);f.regenDelay=28;f.move={...M[key],name:key};if(f.kind==='salvador'&&key==='fire')salvadorSpark(f.x+f.face*45,f.y-110,12);if(f.kind==='vertonal'){f.move={...f.move,damage:f.move.damage*1.05,push:f.move.push*1.05,reach:key==='fire'?0:Math.round(f.move.reach*1.22)};if(key==='punch'){f.move={...f.move,start:Math.max(8,Math.round(f.move.start*.6)),recover:Math.max(9,Math.round(f.move.recover*.8))}}if(key==='fire'){f.move={...f.move,start:24,active:3,recover:22,cost:30};notify(f.id,'SONIC TRIAD','fire')}else vertonalMusic(f,7)}if(f.kind==='jefrey'){if(key==='fire'){f.move={name:'fire',row:7,start:144,active:1,recover:1,cost:M.fire.cost,damage:0,reach:0};f.boostCast=1;f.vx=0;f.dash=0;f.airDash=0;jefreyLightning(f.x,f.y-100);notify(f.id,'LIGHTNING FOCUS','gold')}else{f.move={...f.move,start:Math.max(10,Math.round(f.move.start*.72*(f.boost>0?.95:1))),active:Math.max(4,Math.round(f.move.active*(f.boost>0?.95:1))),recover:Math.max(15,Math.round(f.move.recover*.92*(f.boost>0?.95:1))),damage:f.move.damage*.85,stun:f.move.stun,reach:f.move.reach+10};f.boostCast=0}}if(f.kind==='chip'&&key==='fire'){f.move={...M.fire,name:'fire',row:7,start:16,active:67,recover:1};f.vx=0;f.dash=0;f.airDash=0;f.vy=0;f.flightLock=1;}if(f.kind==='chip'&&key==='heavy'&&!f.ground){f.diving=true;f.move={...M.heavy,name:'heavy',row:4,start:8,active:28,recover:7,reach:105};f.vy=5.5;}f.hit=false;f.vx=0;f.guard=false;setState(f,'attack');if(key==='fire')notify(f.id,'SPECIAL MOVE','fire');return true}
 function chipHop(f){if(f.kind!=='chip'||f.move||f.stun>0||f.hp<=0||f.diving)return false;const extra=!f.ground;if(extra&&f.stamina<staminaCost(f,5))return false;if(extra){f.stamina-=staminaCost(f,5);f.regenDelay=Math.max(f.regenDelay,24);burst(f.x,f.y-17,0xffffff,16,'spark');burst(f.x,f.y-12,0xffed73,20,'dash');particleEmitter(f.x,f.y-20,'chip',170)}f.vy=-10.9;f.ground=false;f.airDashUsed=false;f.flightMode='jump';f.hover=false;setState(f,'jump');return true}
+
+// Gamepad API: standard mapping (PlayStation labels), D-pad + left analog stick.
+// Each controller has independent edges, double-tap timing and a virtual key namespace.
+const padStates=new Map(),padDisconnectNotice=new Set();
+function padCode(index,key){return 'PAD'+index+'_'+key}
+function padAvailable(index){return !!navigator.getGamepads?.()[index]?.connected}
+function assignedPad(side){const d=playerDevices[side];return d?.startsWith('pad')?Number(d.slice(3)):-1}
+function pollGamepads(){
+ const pads=navigator.getGamepads?.()||[];
+ const seen=new Set();
+ for(const gp of pads){if(!gp||!gp.connected)continue;seen.add(gp.index);
+  const i=gp.index,prev=padStates.get(i)||{pressed:new Set(),last:new Map(),menuNext:0};
+  const active=new Set(),button=b=>!!gp.buttons[b]?.pressed;
+  const x=gp.axes[0]||0,y=gp.axes[1]||0,dead=.42;
+  if(button(14)||x< -dead)active.add('l');
+  if(button(15)||x>dead)active.add('r');
+  if(button(12)||y< -dead)active.add('u');
+  if(button(13)||y>dead)active.add('d');
+  if(button(5))active.add('guard'); // R1
+  if(button(0))active.add('punch'); // Cross
+  if(button(1))active.add('kick'); // Circle
+  if(button(2))active.add('heavy'); // Square
+  if(button(3))active.add('fire'); // Triangle
+  if(button(9))active.add('start'); // Options
+  if(button(8))active.add('select'); // Share
+  for(const key of active){const code=padCode(i,key);held.add(code);if(!prev.pressed.has(key)){edge.add(code);if(key==='l'||key==='r'){const last=prev.last.get(key)??-999;if(tick-last<=17)dashTap.add(code);prev.last.set(key,tick)}}}
+  for(const key of prev.pressed)if(!active.has(key))held.delete(padCode(i,key));
+  if(menuVisible&&!menuBusy){
+   if(active.has('d')||active.has('r')||active.has('u')||active.has('l')){
+    if(performance.now()>prev.menuNext){focusMenu(menuFocus+(active.has('d')||active.has('r')?1:-1));prev.menuNext=performance.now()+185}
+   }else prev.menuNext=0;
+   if(active.has('punch')&&!prev.pressed.has('punch')){const el=choices()[menuFocus];if(menuPage==='title')activateMenu('enterTitle');else if(el){if(el.tagName==='SELECT'){el.selectedIndex=(el.selectedIndex+1)%el.options.length;el.dispatchEvent(new Event('change'))}else el.click()}}
+   if(active.has('kick')&&!prev.pressed.has('kick'))activateMenu(menuPage==='pause'?'resume':'back');
+  }else if(!menuVisible&&active.has('start')&&!prev.pressed.has('start')&&phase==='fight')showGamePanel('pause');
+  padStates.set(i,{pressed:active,last:prev.last,menuNext:prev.menuNext});
+ }
+ for(const [i,state] of padStates)if(!seen.has(i)){
+  for(const key of state.pressed)held.delete(padCode(i,key));
+  padStates.delete(i);
+  for(let side=0;side<2;side++)if(assignedPad(side)===i&&phase==='fight'&&!padDisconnectNotice.has(i)){
+   notify(side,'CONTROLE DESCONECTADO · USE TECLADO','danger');padDisconnectNotice.add(i);
+  }
+ }
+ for(const i of seen)padDisconnectNotice.delete(i);
+}
+function controlsFor(side){
+ const d=playerDevices[side],i=assignedPad(side);
+ if(i>=0&&padAvailable(i))return Object.fromEntries(['l','r','u','d','guard','punch','kick','heavy','fire'].map(k=>[k,padCode(i,k)]));
+ // A disconnected gamepad can be replaced immediately by the side's original keyboard.
+ return control[d==='keyboard1'?1:side===0?0:1];
+}
+
 function input(f,c){
 if(!canAct(f))return;
 f.crouch=false;
@@ -377,7 +430,7 @@ function update(){tick++;if(cinemaFreeze>0){cinemaFreeze--;edge.clear();dashTap.
   if(transitionAge>=21){clearCombatVFX();if(wins.some(v=>v>=2)){phase='over';transitionMode='opening';transitionAge=0;announced=(fighters[wins[0]>wins[1]?0:1]?.kind||'LUTADOR').toUpperCase()+' CAMPEÃO!';showGamePanel('victory')}else{round++;reset()}}
  }
  edge.clear();dashTap.clear();return}
- if(wait>0){wait--;if(wait===214)announce('ROUND '+round,55);if(wait===70)announce('FIGHT!',52);for(let f of fighters)f.t++;edge.clear();dashTap.clear();return}if(tick%60===0&&gamePrefs.roundTime!==-1)time=Math.max(0,time-1);let [a,b]=fighters;if(mode==='cpu-cpu')ai(a,b);else input(a,control[0]);if(mode==='cpu'||mode==='cpu-cpu')ai(b,a);else input(b,control[1]);for(let f of fighters){if(f.stop>0){f.stop--;continue}if(f.flash>0)f.flash--;if(f.comboTime>0)f.comboTime--;else f.combo=0;if(f.airDash>0&&!f.ground&&f.stun<=0&&!f.move){f.airDash--;f.vx=f.airDashDir*12.4*(f.kind==='chip'?1.6:f.kind==='jefrey'?1.21:1);if(f.kind!=='chip')f.vy*=.2;if(tick%2===0){burst(f.x-f.airDashDir*24,f.y-92,f.kind==='chip'?0xffe891:0x7bdcff,7,'dash');burst(f.x-f.airDashDir*16,f.y-110,0xffffff,3,'spark')}}if(f.dash>0){f.dash--;if(!f.move&&!f.guard&&f.stun<=0)f.vx=f.dashDir*10.2*(f.kind==='jefrey'?1.21:1);if(tick%2===0)burst(f.x-f.dashDir*22,f.y-36,0xffd17a,3,'dash')}if(f.boost>0)f.boost--;if(f.regenDelay>0)f.regenDelay--;else if(!f.guard&&!f.move&&f.stamina<100){const pace=gamePrefs.staminaSpeed==='slow'?.9:gamePrefs.staminaSpeed==='fast'?1.1:1;f.stamina=Math.min(100,f.stamina+.32*1.05*(f.kind==='jefrey'?1.1:1)*pace*(Math.abs(f.vx)>.1?.5:1))}if(f.guardBroken&&f.stamina>=20)f.guardBroken=false;if(f.shock>0){f.shock--;f.stun=Math.max(f.stun,f.shock);f.vx=0;f.vy=0;f.move=null;f.guard=false;setState(f,'hurt');if(tick%2===0)salvadorSpark(f.x,f.y-103,8);if(f.shock===0){f.stun=0;setState(f,'idle')}continue}if(f.stun>0){f.stun--;if(f.stun===0)setState(f,'idle')}if(f.kind==='vertonal'&&f.move&&tick%4===0)vertonalMusic(f,3);if(f.kind==='salvador'&&tick%3===0&&f.hp>0)salvadorSpark(f.x,f.y-102,f.move?9:5);
+ if(wait>0){wait--;if(wait===214)announce('ROUND '+round,55);if(wait===70)announce('FIGHT!',52);for(let f of fighters)f.t++;edge.clear();dashTap.clear();return}if(tick%60===0&&gamePrefs.roundTime!==-1)time=Math.max(0,time-1);let [a,b]=fighters;if(mode==='cpu-cpu')ai(a,b);else input(a,controlsFor(0));if(mode==='cpu'||mode==='cpu-cpu')ai(b,a);else input(b,controlsFor(1));for(let f of fighters){if(f.stop>0){f.stop--;continue}if(f.flash>0)f.flash--;if(f.comboTime>0)f.comboTime--;else f.combo=0;if(f.airDash>0&&!f.ground&&f.stun<=0&&!f.move){f.airDash--;f.vx=f.airDashDir*12.4*(f.kind==='chip'?1.6:f.kind==='jefrey'?1.21:1);if(f.kind!=='chip')f.vy*=.2;if(tick%2===0){burst(f.x-f.airDashDir*24,f.y-92,f.kind==='chip'?0xffe891:0x7bdcff,7,'dash');burst(f.x-f.airDashDir*16,f.y-110,0xffffff,3,'spark')}}if(f.dash>0){f.dash--;if(!f.move&&!f.guard&&f.stun<=0)f.vx=f.dashDir*10.2*(f.kind==='jefrey'?1.21:1);if(tick%2===0)burst(f.x-f.dashDir*22,f.y-36,0xffd17a,3,'dash')}if(f.boost>0)f.boost--;if(f.regenDelay>0)f.regenDelay--;else if(!f.guard&&!f.move&&f.stamina<100){const pace=gamePrefs.staminaSpeed==='slow'?.9:gamePrefs.staminaSpeed==='fast'?1.1:1;f.stamina=Math.min(100,f.stamina+.32*1.05*(f.kind==='jefrey'?1.1:1)*pace*(Math.abs(f.vx)>.1?.5:1))}if(f.guardBroken&&f.stamina>=20)f.guardBroken=false;if(f.shock>0){f.shock--;f.stun=Math.max(f.stun,f.shock);f.vx=0;f.vy=0;f.move=null;f.guard=false;setState(f,'hurt');if(tick%2===0)salvadorSpark(f.x,f.y-103,8);if(f.shock===0){f.stun=0;setState(f,'idle')}continue}if(f.stun>0){f.stun--;if(f.stun===0)setState(f,'idle')}if(f.kind==='vertonal'&&f.move&&tick%4===0)vertonalMusic(f,3);if(f.kind==='salvador'&&tick%3===0&&f.hp>0)salvadorSpark(f.x,f.y-102,f.move?9:5);
  if(f.kind==='jefrey'&&(f.boost>0||f.move?.name==='fire')&&tick%5===0)jefreyArc(f,f.move?.name==='fire');if(f.kind==='jefrey'){const moving=Math.abs(f.vx)>1&&!f.move&&f.ground;if(moving!==f.fxMoving)f.fxMoving=moving}if(f.move){if(f.kind==='chip'&&f.move.name==='fire'){f.vx=0;f.vy=0;f.dash=0;f.airDash=0}if(f.diving){f.vx=f.face*6.3;f.vy=Math.min(14,f.vy+GRAV);if(tick%3===0){burst(f.x-f.face*20,f.y-70,0xffe68a,5,'dash')}}f.t++;if(f.kind==='jefrey'&&f.move.name==='fire'&&f.t%18===0){jefreyLightning(f.x,f.y-100)}if(f.kind==='jefrey'&&f.move.name==='fire'&&f.t===144){f.boost=600;f.boostCast=0;notify(f.id,'SPEED +5% · 10s','gold');jefreyLightning(f.x,f.y-95)}if(f.move.name==='heavy'&&!f.diving&&f.t>=f.move.start-8&&f.t<=f.move.start+2)f.x+=f.face*4.2;if(f.move.name==='fire'&&f.t===f.move.start&&f.kind==='chip'){chipFields.push({owner:f.id,age:0,duration:67,hits:new Set(),radius:142});burst(f.x,f.y-95,0xfff2a2,65,'spark');particleEmitter(f.x,f.y-95,'chip',1100);notify(f.id,'RADIANT FIELD · 3 HITS','fire');cinemaHold=Math.max(cinemaHold,15)}
 if(f.move.name==='fire'&&f.t===f.move.start&&f.kind==='vertonal'){
  const volley={hit:false};const px=f.x,py=f.y-112;
@@ -438,6 +491,30 @@ const noticeLabels=Array.from({length:2},()=>Array.from({length:3},()=>{let t=ne
 function drawFeedback(){noticeGraphics.clear();for(let side=0;side<2;side++){for(let j=0;j<3;j++){const n=feedback[side][j],t=noticeLabels[side][j];if(!n){t.visible=false;continue}t.visible=true;const fade=Math.max(0,Math.min(1,n.age/7,(n.life-n.age)/13)),slide=(1-Math.min(1,n.age/13))*18,x=(side===0?24:W-24)+(side===0?1:-1)*(144-slide),y=120+j*29;const col=n.tone==='break'?0x62dcff:n.tone==='danger'?0xff6e82:n.tone==='fire'?0xffa64c:n.tone==='combo'?0xf9db85:0xffd17c;noticeGraphics.roundRect(x-140,y-12,280,24,3).fill({color:0x0b1428,alpha:.7*fade});noticeGraphics.roundRect(x-140,y-12,280,24,3).stroke({color:col,width:1,alpha:.8*fade});noticeGraphics.rect(x-140,y-10,3,20).fill({color:col,alpha:fade});t.text=n.message;t.position.set(x,y);t.alpha=fade}}}
 // UI / NAVIGATION: isolated DOM overlay, leaving Pixi world and HUD independent.
 const style=document.createElement('style');style.textContent=`
+html,body{overflow:hidden!important;height:100%;overscroll-behavior:none}
+#menuContent{overflow:hidden!important;min-height:0!important;gap:clamp(5px,1vh,12px)!important;padding:clamp(8px,1.5vh,20px)!important}
+#gameShell .menuHead h2{font-size:clamp(23px,4vh,48px)!important}
+#gameShell .menuTile{min-height:0!important;padding:clamp(7px,1.1vh,15px)!important}
+#gameShell .menuGrid,#gameShell .menuCards{min-height:0}
+#gameShell .menuSettings{gap:clamp(3px,.6vh,9px)!important;min-height:0}
+#gameShell .menuSetting{padding:clamp(5px,.8vh,11px)!important}
+#gameShell .wikiLayout{min-height:0;overflow:hidden}
+#gameShell .wikiNav{overflow:hidden}
+#gameShell .wikiArticle{overflow:hidden;font-size:clamp(11px,1.6vh,15px)}
+#gameShell .compactCommands{grid-template-columns:repeat(3,minmax(0,1fr))!important;overflow:hidden}
+#gameShell .compactCommands .menuSetting{padding:4px 8px!important;display:flex;justify-content:space-between;align-items:center;gap:5px}
+#gameShell .compactCommands .menuSetting button{padding:3px 7px}
+#gameShell .deviceColumns{display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-height:0;position:relative;z-index:1}
+#gameShell .deviceSide{background:#171e35db;border:2px solid #a66e39;border-radius:12px;padding:clamp(7px,1vh,15px);display:flex;flex-direction:column;gap:5px;min-height:0}
+#gameShell .deviceSide h3{margin:0;color:#ffd280;font-size:clamp(17px,3vh,30px)}
+#gameShell .deviceSide p{margin:0 0 3px;color:#fff1d1;font-size:12px}
+#gameShell .devicePick{width:100%;flex:1;min-height:0;border-radius:7px;padding:4px;background:#25283d;color:#e7e8fa;border:1px solid #777a92;cursor:pointer}
+#gameShell .devicePick.active{border:2px solid #ffe48c;background:#68512e;color:white}
+#gameShell .devicePick:disabled{opacity:.3;cursor:default}
+#gameShell .deviceFooter{display:grid;grid-template-columns:2fr 1fr;gap:10px;position:relative;z-index:1}
+#gameShell .deviceFooter .menuTile{min-height:48px!important}
+#gameShell .menuInfo{font-size:clamp(10px,1.5vh,13px);padding:5px!important}
+
 #gameShell:not(.hidden) #menuContent:after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(circle,#ffe6aa 0 1.5px,#f78235aa 2px,transparent 5px),radial-gradient(circle,#ffbc69 0 2px,transparent 6px);background-size:131px 167px,173px 193px;background-position:20px 0,80px 35px;opacity:.45;animation:menuEmbers 13s linear infinite}
 @keyframes menuEmbers{from{background-position:20px 0,80px 35px}to{background-position:90px -500px,30px -620px}}
 #gameShell .menuHead,#gameShell .menuGrid,#gameShell .menuSettings,#gameShell .menuCards,#gameShell .fighterSelect,#gameShell .wikiLayout{position:relative;z-index:1}
@@ -513,17 +590,18 @@ function heading(title,subtitle=''){return '<div class="menuHead"><div><h2>'+tit
 function showGamePanel(page){menuVisible=true;menuPage=page;menuFocus=0;paused=page==='pause'||page==='pauseSettings'||page==='commands';shell.classList.remove('hidden');battleIntro.classList.remove('active');renderMenu()}
 function hideGamePanel(){menuVisible=false;shell.classList.add('hidden');paused=false;held.clear();edge.clear();dashTap.clear()}
 function menuSwap(page){if(menuBusy)return;menuBusy=true;menuWipe.classList.add('closed');setTimeout(()=>{showGamePanel(page);menuWipe.classList.remove('closed');setTimeout(()=>menuBusy=false,250)},250)}
-function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.rosterSlot:not(:disabled),button.menuSetting button,button.menuSetting select'))}
-function focusMenu(i){const list=choices();if(!list.length)return;menuFocus=(i+list.length)%list.length;list.forEach((el,j)=>el.classList.toggle('focused',j===menuFocus));list[menuFocus].scrollIntoView({block:'nearest',inline:'nearest'});updatePreview()}
+function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.rosterSlot:not(:disabled),button.menuSetting button,button.menuSetting select,button.devicePick:not(:disabled)'))}
+function focusMenu(i){const list=choices();if(!list.length)return;menuFocus=(i+list.length)%list.length;list.forEach((el,j)=>el.classList.toggle('focused',j===menuFocus));/* Fixed-screen menu navigation: never scroll the document */updatePreview()}
 function updatePreview(){const el=choices()[menuFocus],id=el?.dataset.character,c=chars.find(x=>x.id===id),p=document.getElementById('activeFighter');if(!p)return;p.querySelector('h3').textContent=c?.name||(id==='random'?'ALEATÓRIO':'SELECIONE');p.querySelector('p').textContent=c?(c[gamePrefs.lang]||c.special):'◈'}
 function renderMenu(){let html='',t=tr;
  if(menuPage==='title'){html='<div class="titleScreen"><div class="titleBurst"></div><div class="titleEyebrow">BREADS ON FIRE · PRESENTS</div><div class="titleLogo">BREADS ON FIRE<br><em>BRAVE FIGHTERS</em></div><div class="titleSlash"></div><div class="titlePress">'+(gamePrefs.lang==='en'?'PRESS ENTER TO START':gamePrefs.lang==='es'?'PULSA ENTER PARA COMENZAR':'PRESSIONE ENTER PARA COMEÇAR')+'</div><div class="titleHint">© BREADS ON FIRE · PROTOTYPE V3.3</div></div><button class="titleClick" data-action="enterTitle" aria-label="ENTER"></button>'}
  else if(menuPage==='home'){html=heading('MENU PRINCIPAL','ESCOLHA SEU PRÓXIMO DESAFIO')+'<div class="menuGrid">'+tile(t('play'),'PLAYER VS PLAYER · PLAYER VS CPU · CPU VS CPU','play','big')+tile(t('settings'),'GRÁFICOS · IDIOMA · TECLAS','settings','side')+tile(t('comic'),'FLIPTRU · BREADS ON FIRE','comic')+tile('TUTORIAL','GUIA DE COMBATE · WIKI','tutorial')+'</div>'}
  else if(menuPage==='tutorial'){
- const topics={basics:['FUNDAMENTOS','VENÇA DOIS ROUNDS PARA CONQUISTAR A PARTIDA. GERENCIE SUA STAMINA E CONTROLE A DISTÂNCIA.'],movement:['MOVIMENTAÇÃO','P1: A / D PARA ANDAR E W PARA PULAR. P2: SETAS PARA ANDAR E PULAR. TOQUE DUAS VEZES NA DIREÇÃO PARA EXECUTAR UM DASH.'],attacks:['ATAQUES','P1: F SOCO, G CHUTE, H GOLPE FORTE, J ESPECIAL. P2: U SOCO, I CHUTE, O GOLPE FORTE, L ESPECIAL. CADA GOLPE TEM CUSTO E RECUPERAÇÃO.'],defense:['DEFESA E STAMINA','P1: R DEFENDE. P2: P DEFENDE. BLOQUEAR CONSOME STAMINA; A GUARDA PODE SER QUEBRADA. A STAMINA SE RECUPERA QUANDO VOCÊ DESCANSA.'],fighters:['PERSONAGENS','WESLEY USA PROJÉTEIS DE FOGO. CHIP USA SALTOS EXTRAS, MERGULHO E CAMPO RADIANTE. JEFREY USA FOCO RELÂMPAGO PARA ACELERAR. VERTONAL USA A TRÍADE SONORA, COM TRÊS NOTAS MUSICAIS DIRECIONAIS. SALVADOR USA RAIOS PARALISANTES, ELETRICIDADE E AVANÇOS RÁPIDOS.'],modes:['MODOS DE JOGO','PLAYER VS PLAYER: DOIS JOGADORES LOCAIS. PLAYER VS CPU: ENFRENTE A IA. CPU VS CPU: ASSISTA AO COMBATE.'],options:['CONFIGURAÇÕES','ENTER DURANTE A LUTA ABRE A PAUSA. AJUSTE GRÁFICOS, CONSULTE OS COMANDOS E RETORNE À PARTIDA. REMAPEAMENTO DISPONÍVEL NO MENU PRINCIPAL.']};
+ const topics={gamepad:['GAMEPAD · PLAYSTATION','DIRECIONAL OU ANALÓGICO ESQUERDO: MOVER, PULAR E AGACHAR. R1: DEFESA. X: SOCO. BOLINHA: CHUTE. QUADRADO: GOLPE FORTE. TRIÂNGULO: ESPECIAL. DOIS TOQUES PARA DASH, TAMBÉM NO AR. OPTIONS: PAUSA. X CONFIRMA E BOLINHA VOLTA NOS MENUS.'],local:['MULTIPLAYER · CONTROLES','ANTES DE ESCOLHER OS LUTADORES, ATRIBUA UM CONJUNTO DE TECLAS OU UM GAMEPAD A CADA JOGADOR. É POSSÍVEL TROCAR PARA O TECLADO DURANTE A PARTIDA CASO O CONTROLE DESCONECTE.'],basics:['FUNDAMENTOS','VENÇA DOIS ROUNDS PARA CONQUISTAR A PARTIDA. GERENCIE SUA STAMINA E CONTROLE A DISTÂNCIA.'],movement:['MOVIMENTAÇÃO','P1: A / D PARA ANDAR E W PARA PULAR. P2: SETAS PARA ANDAR E PULAR. TOQUE DUAS VEZES NA DIREÇÃO PARA EXECUTAR UM DASH.'],attacks:['ATAQUES','P1: F SOCO, G CHUTE, H GOLPE FORTE, J ESPECIAL. P2: U SOCO, I CHUTE, O GOLPE FORTE, L ESPECIAL. CADA GOLPE TEM CUSTO E RECUPERAÇÃO.'],defense:['DEFESA E STAMINA','P1: R DEFENDE. P2: P DEFENDE. BLOQUEAR CONSOME STAMINA; A GUARDA PODE SER QUEBRADA. A STAMINA SE RECUPERA QUANDO VOCÊ DESCANSA.'],fighters:['PERSONAGENS','WESLEY USA PROJÉTEIS DE FOGO. CHIP USA SALTOS EXTRAS, MERGULHO E CAMPO RADIANTE. JEFREY USA FOCO RELÂMPAGO PARA ACELERAR. VERTONAL USA A TRÍADE SONORA, COM TRÊS NOTAS MUSICAIS DIRECIONAIS. SALVADOR USA RAIOS PARALISANTES, ELETRICIDADE E AVANÇOS RÁPIDOS.'],modes:['MODOS DE JOGO','PLAYER VS PLAYER: DOIS JOGADORES LOCAIS. PLAYER VS CPU: ENFRENTE A IA. CPU VS CPU: ASSISTA AO COMBATE.'],options:['CONFIGURAÇÕES','ENTER DURANTE A LUTA ABRE A PAUSA. AJUSTE GRÁFICOS, CONSULTE OS COMANDOS E RETORNE À PARTIDA. REMAPEAMENTO DISPONÍVEL NO MENU PRINCIPAL.']};
  const topic=topics[wikiTopic]||topics.basics;
- html=heading('TUTORIAL','WIKI · GUIA DE COMBATE')+'<div class="wikiLayout"><div class="wikiNav">'+Object.entries(topics).map(([id,v])=>tile(v[0],'','wiki:'+id)).join('')+'</div><article class="wikiArticle"><h3>'+topic[0]+'</h3><p>'+topic[1]+'</p><h3>COMO NAVEGAR</h3><p>SETAS: NAVEGAR · ENTER: CONFIRMAR · ESC: VOLTAR</p></article></div>'+tile(t('back'),'','back','wide');
+ html=heading('TUTORIAL','WIKI · GUIA DE COMBATE')+'<div class="wikiLayout"><div class="wikiNav">'+Object.entries(topics).map(([id,v])=>tile(v[0],'','wiki:'+id)).join('')+'</div><article class="wikiArticle"><h3>'+topic[0]+'</h3><p>'+topic[1]+'</p><h3>COMO NAVEGAR</h3><p>SETAS / ANALÓGICO: NAVEGAR · ENTER / X: CONFIRMAR · ESC / ○: VOLTAR</p></article></div>'+tile(t('back'),'','back','wide');
  }
+ else if(menuPage==='devices'){const opts=[['keyboard0','TECLADO · WASD'],['keyboard1','TECLADO · SETAS'],...Array.from({length:4},(_,i)=>['pad'+i,'GAMEPAD '+(i+1)+(padAvailable(i)?' · CONECTADO':' · DESCONECTADO')])];html=heading('ESCOLHA OS CONTROLES','PLAYER VS PLAYER · ATRIBUIÇÃO DE DISPOSITIVOS')+'<div class="deviceColumns">'+[0,1].map(side=>'<div class="deviceSide"><h3>PLAYER '+(side+1)+'</h3><p>'+(deviceDraft[side]?.startsWith('pad')?'CONTROLE '+(Number(deviceDraft[side].slice(3))+1):deviceDraft[side]==='keyboard0'?'TECLADO WASD':'TECLADO SETAS')+'</p>'+opts.map(([id,label])=>'<button class="devicePick '+(deviceDraft[side]===id?'active':'')+'" data-action="device:'+side+':'+id+'" '+((id.startsWith('pad')&&!padAvailable(Number(id.slice(3))))||deviceDraft[1-side]===id?'disabled':'')+'>'+label+'</button>').join('')+'</div>').join('')+'</div><div class="deviceFooter">'+tile('CONFIRMAR DUPLAS','X / ENTER · CONFIRMAR','devicesReady')+tile('VOLTAR','BOLINHA / ESC','back')+'</div><div class="menuInfo">DOIS TECLADOS FÍSICOS NÃO SÃO IDENTIFICADOS SEPARADAMENTE PELO NAVEGADOR: USE OS DOIS CONJUNTOS DE TECLAS OU GAMEPADS DISTINTOS.</div>'}
  else if(menuPage==='mode'){html=heading(t('mode'),'01 / 04')+'<div class="menuCards">'+tile('PLAYER VS PLAYER','2 JOGADORES LOCAIS','mode:local')+tile('PLAYER VS CPU','DESAFIO CONTRA IA','mode:cpu')+tile('CPU VS CPU','ASSISTIR AO COMBATE','mode:cpu-cpu')+'</div>'+tile(t('back'),'','back','wide')}
  else if(menuPage==='p1'||menuPage==='p2'){
  const side=menuPage==='p1'?0:1,other=chars.find(c=>c.id===selected[1-side]);
@@ -533,7 +611,7 @@ function renderMenu(){let html='',t=tr;
  }
  else if(menuPage==='stage'){html=heading(t('stage'),'04 / 04')+'<div class="menuCards">'+tile('ROOFTOP','CIDADE · DISPONÍVEL','stage:rooftop')+Array.from({length:4},(_,i)=>tile('STAGE '+(i+2),'EM BREVE','', 'locked')).join('')+'</div><div class="menuSettings"><div class="menuSetting"><label>'+t('time')+'</label><select data-setting="time"><option value="60">60</option><option value="99">99</option><option value="180">180</option><option value="-1">∞</option></select></div><div class="menuSetting"><label>VELOCIDADE DE ENERGIA</label><select data-setting="staminaSpeed"><option value="slow">LENTA · -10%</option><option value="regular">REGULAR</option><option value="fast">RÁPIDA · +10%</option></select></div><div class="menuSetting"><label>'+t('difficulty')+'</label><select data-setting="difficulty"><option value="easy">EASY</option><option value="normal">NORMAL</option><option value="hard">HARD</option></select></div></div>'+tile(t('ready'),'','fight','wide')+tile(t('back'),'','back','wide')}
  else if(menuPage==='settings'||menuPage==='pauseSettings'){html=heading(t('settings'),'BENTO · PERFORMANCE · PERSONALIZAÇÃO')+'<div class="menuSettings">'+[['language',t('language'),[['pt','PORTUGUÊS BR'],['en','ENGLISH'],['es','ESPAÑOL']]],['particles',t('particles'),[['true','ON'],['false','OFF']]],['afterimages',t('afterimages'),[['true','ON'],['false','OFF']]],['shake',t('shake'),[['true','ON'],['false','OFF']]],['debug','DEBUG · HITBOXES', [['false','OFF'],['true','ON']]],['quality','QUALIDADE', [['high','HIGH'],['low','LOW']]]].map(([key,label,opts])=>'<div class="menuSetting"><label>'+label+'</label><select data-setting="'+key+'">'+opts.map(([v,n])=>'<option value="'+v+'">'+n+'</option>').join('')+'</select></div>').join('')+(menuPage==='settings'?'<div class="menuSetting"><label>'+t('controls')+'</label><button data-action="remap">'+t('controls')+'</button></div>':'')+'</div>'+tile(t('back'),'','back','wide')}
- else if(menuPage==='remap'||menuPage==='commands'){html=heading(menuPage==='remap'?t('controls'):t('commands'),'P1 / P2 · KEYBOARD')+'<div class="menuSettings">'+control.map((c,i)=>Object.entries(c).map(([key,code])=>'<div class="menuSetting"><label>P'+(i+1)+' · '+key.toUpperCase()+'</label><button data-action="'+(menuPage==='remap'?'bind:'+i+':'+key:'noop')+'">'+code.replace('Key','').replace('Arrow','ARROW ')+'</button></div>').join('')).join('')+'</div><div class="menuInfo">A/D · MOVE | W · JUMP | R · GUARD | F · PUNCH | G · KICK | H · HEAVY | J · SPECIAL<br>DOUBLE TAP · DASH | CHIP · AIR HOP / DIVE | JEFREY · LIGHTNING FOCUS</div>'+tile(t('back'),'','back','wide')}
+ else if(menuPage==='remap'||menuPage==='commands'){html=heading(menuPage==='remap'?t('controls'):t('commands'),'P1 / P2 · TECLADO')+'<div class="menuSettings compactCommands">'+control.map((c,i)=>Object.entries(c).map(([key,code])=>'<div class="menuSetting"><label>P'+(i+1)+' · '+key.toUpperCase()+'</label><button data-action="'+(menuPage==='remap'?'bind:'+i+':'+key:'noop')+'">'+code.replace('Key','').replace('Arrow','ARROW ')+'</button></div>').join('')).join('')+'</div><div class="menuInfo">GAMEPAD: ANALÓGICO ESQUERDO / DIRECIONAL · MOVER E PULAR | R1 · DEFESA | X · SOCO | ○ · CHUTE | □ · FORTE | △ · ESPECIAL<br>DOIS TOQUES NA DIREÇÃO · DASH (INCLUSIVE NO AR) | OPTIONS · PAUSA | X · CONFIRMAR | ○ · VOLTAR</div>'+tile(t('back'),'','back','wide')}
  else if(menuPage==='pause'){html=heading(t('pause'),'ENTER · OPTIONS')+'<div class="menuGrid">'+tile(t('resume'),'','resume','big')+tile(t('settings'),'','pauseSettings','side')+tile(t('commands'),'','commands')+tile(t('restart'),'','restart')+tile(t('select'),'','selection')+tile(t('home'),'','home','wide')+'</div>'}
  else if(menuPage==='victory'){html=heading(t('victory'),announced)+'<div class="menuGrid">'+tile(t('rematch'),'','rematch','big')+tile(t('select'),'','selection','side')+tile(t('home'),'','home','wide')+'</div>'}
  menuContent.innerHTML=html;
@@ -544,17 +622,19 @@ function renderMenu(){let html='',t=tr;
 function setMenuOption(key,value){if(key==='time')gamePrefs.roundTime=Number(value);else if(key==='difficulty')document.getElementById('difficulty').value=value;else if(key==='language'){gamePrefs.lang=value;renderMenu()}else{gamePrefs[key]=value==='true'?true:value==='false'?false:value;if(key==='debug')debug=!!gamePrefs.debug;if(key==='particles'&&!gamePrefs.particles){particles.length=0;particleGraphics.clear();for(const e of vfxEmitters)e.em.emit=false}if(key==='afterimages'&&!gamePrefs.afterimages)afterimageLayer.removeChildren().forEach(x=>x.destroy());if(key==='quality'&&value==='low'){gamePrefs.particles=false;particles.length=0;particleGraphics.clear()} }try{localStorage.setItem('animeFighterPrefs',JSON.stringify(gamePrefs));localStorage.setItem('animeFighterControls',JSON.stringify(control))}catch(e){}}
 function activateMenu(action){if(!action||action==='noop')return;
  if(action.startsWith('wiki:')){wikiTopic=action.slice(5);renderMenu();return}
+ if(action.startsWith('device:')){const [,side,device]=action.split(':');const n=Number(side);if(device.startsWith('pad')&&!padAvailable(Number(device.slice(3))))return;if(deviceDraft[1-n]===device)return;deviceDraft[n]=device;renderMenu();return}
+ if(action==='devicesReady'){if(deviceDraft[0]===deviceDraft[1])return;for(let i=0;i<2;i++)if(deviceDraft[i].startsWith('pad')&&!padAvailable(Number(deviceDraft[i].slice(3))))return;playerDevices.splice(0,2,...deviceDraft);menuSwap('p1');return}
  if(action==='tutorial'){menuSwap('tutorial');return}
  if(action==='comic'){window.open('https://fliptru.com.br/comic/breads-on-fire','_blank','noopener');return}
  if(action==='enterTitle'){menuSwap('home');return}
  if(action==='play'||action==='selection'){if(action==='selection')endCombatSession();menuSwap('mode');return}
  if(action==='settings'||action==='pauseSettings'||action==='commands'||action==='remap'){menuReturn=menuPage;menuSwap(action);return}
- if(action==='back'){menuSwap(menuPage==='p2'?'p1':menuPage==='p1'?'mode':menuPage==='stage'?'p2':menuPage==='remap'?menuReturn:menuPage==='commands'||menuPage==='pauseSettings'?menuReturn:'home');return}
+ if(action==='back'){menuSwap(menuPage==='devices'?'mode':menuPage==='p2'?'p1':menuPage==='p1'?'mode':menuPage==='stage'?'p2':menuPage==='remap'?menuReturn:menuPage==='commands'||menuPage==='pauseSettings'?menuReturn:'home');return}
  if(action==='home'){endCombatSession();menuSwap('home');return}
  if(action==='resume'){hideGamePanel();return}
  if(action==='restart'||action==='rematch'){endCombatSession();startBattleIntro();return}
  if(action==='fight'){startBattleIntro();return}
- if(action.startsWith('mode:')){matchType=action.split(':')[1];mode=matchType;menuSwap('p1');return}
+ if(action.startsWith('mode:')){matchType=action.split(':')[1];mode=matchType;if(mode==='local'){deviceDraft=[...playerDevices];menuSwap('devices')}else{playerDevices[0]=padAvailable(0)?'pad0':'keyboard0';menuSwap('p1')}return}
  if(action.startsWith('char:')){const c=action.split(':')[1],side=menuPage==='p1'?0:1;selected[side]=c==='random'?chars[Math.floor(Math.random()*chars.length)].id:c;document.getElementById(side?'char2':'char1').value=selected[side];menuSwap(side?'stage':'p2');return}
  if(action.startsWith('stage:')){selectedStage=action.split(':')[1];gamePrefs.stage=selectedStage;return}
  if(action.startsWith('bind:')){const [,i,key]=action.split(':');remapTarget=[Number(i),key];const el=choices()[menuFocus];if(el)el.textContent='PRESS KEY…';return}
@@ -578,6 +658,6 @@ window.addEventListener('keydown',e=>{
 },true);
 try{const prefs=JSON.parse(localStorage.getItem('animeFighterPrefs')||'null');if(prefs)Object.assign(gamePrefs,prefs);const keys=JSON.parse(localStorage.getItem('animeFighterControls')||'null');if(Array.isArray(keys)&&keys.length===2)for(let i=0;i<2;i++)for(const k of Object.keys(control[i]))if(typeof keys[i]?.[k]==='string')control[i][k]=keys[i][k]}catch(e){}
 debug=!!gamePrefs.debug;renderMenu();
-let acc=0;app.ticker.add(t=>{acc+=Math.min(t.deltaMS,100);let n=0;while(acc>=1000/FPS&&n++<4){update();acc-=1000/FPS}render();drawFeedback()});document.getElementById('start').onclick=()=>{try{window.speechSynthesis?.cancel()}catch(e){}start()};document.getElementById('mode').onclick=e=>{mode=mode==='cpu'?'local':'cpu';e.target.textContent='MODO: '+(mode==='cpu'?'CPU':'2 JOGADORES')};document.getElementById('debug').onclick=e=>{debug=!debug;e.target.textContent='HITBOXES: '+(debug?'ON':'OFF')};document.getElementById('pause').onclick=()=>paused=!paused;render();
+let acc=0;app.ticker.add(t=>{pollGamepads();acc+=Math.min(t.deltaMS,100);let n=0;while(acc>=1000/FPS&&n++<4){update();acc-=1000/FPS}render();drawFeedback()});document.getElementById('start').onclick=()=>{try{window.speechSynthesis?.cancel()}catch(e){}start()};document.getElementById('mode').onclick=e=>{mode=mode==='cpu'?'local':'cpu';e.target.textContent='MODO: '+(mode==='cpu'?'CPU':'2 JOGADORES')};document.getElementById('debug').onclick=e=>{debug=!debug;e.target.textContent='HITBOXES: '+(debug?'ON':'OFF')};document.getElementById('pause').onclick=()=>paused=!paused;render();
 })();
 </script></body></html>
