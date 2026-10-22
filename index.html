@@ -591,7 +591,7 @@ body{background:radial-gradient(circle at 80% 0%,#47231d,#100c16 65%);text-trans
 .menuSetting{padding:13px;border:1px solid #f5bb7550;border-radius:11px;background:#211827cc;display:flex;flex-direction:column;gap:8px}
 .menuSetting label{font-size:12px;font-weight:800;color:#ffcc89}
 .menuSetting select,.menuSetting button{width:100%;padding:10px;border-radius:7px;color:white;background:#3b2934;border:1px solid #e7a85b88;text-transform:uppercase}
-.menuSetting button.focused,.menuSetting select:focus{outline:2px solid #ffcb6c}
+.menuSetting button.focused,.menuSetting select.focused,.menuSetting select:focus{outline:2px solid #ffcb6c;outline-offset:1px}
 #menuWipe{position:absolute;inset:0;pointer-events:none;z-index:12}
 .wipeTop,.wipeBottom{position:absolute;left:0;width:100%;height:0;background:#08070b;transition:height .24s cubic-bezier(.65,0,.25,1)}
 .wipeTop{top:0;transform:skewY(-1deg);transform-origin:top left}.wipeBottom{bottom:0;transform:skewY(1deg);transform-origin:bottom right}
@@ -666,11 +666,14 @@ function menuSelectCommand(direction){
  else moveMenuSelect(direction==='next'?1:-1);
  return true;
 }
-function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.rosterSlot:not(:disabled),button.menuSetting button,button.menuSetting select,button.devicePick:not(:disabled)'))}
+function choices(){return Array.from(menuContent.querySelectorAll('button.menuTile:not(.locked),button.rosterSlot:not(:disabled), .menuSetting button,.menuSetting select,button.devicePick:not(:disabled)'))}
 let menuSelectOpen=null,menuSelectIndex=0;
 function focusMenu(i){if(menuSelectOpen)return;const list=choices();if(!list.length)return;menuFocus=(i+list.length)%list.length;list.forEach((el,j)=>el.classList.toggle('focused',j===menuFocus));/* Fixed-screen menu navigation: never scroll the document */updatePreview()}
+// Keep keyboard/gamepad selection in sync when the mouse or Tab changes focus.
+menuContent.addEventListener('focusin',e=>{const list=choices(),index=list.indexOf(e.target);if(index>=0){menuFocus=index;list.forEach((el,i)=>el.classList.toggle('focused',i===index));}},true);
+menuContent.addEventListener('pointerdown',e=>{const target=e.target.closest('select');if(target){const list=choices(),index=list.indexOf(target);if(index>=0){menuFocus=index;list.forEach((el,i)=>el.classList.toggle('focused',i===index));}}});
 function updatePreview(){const el=choices()[menuFocus],id=el?.dataset.character,c=chars.find(x=>x.id===id),p=document.getElementById('activeFighter');if(!p)return;p.querySelector('h3').textContent=c?.name||(id==='random'?'ALEATÓRIO':'SELECIONE');p.querySelector('p').textContent=c?(c[gamePrefs.lang]||c.special):'◈'}
-function renderMenu(){menuSelectOpen=null;let html='',t=tr;
+function renderMenu(){if(menuSelectOpen)closeMenuSelect(false);let html='',t=tr;
  if(menuPage==='title'){html='<div class="titleScreen"><div class="titleBurst"></div><div class="titleEyebrow">BREADS ON FIRE · PRESENTS</div><div class="titleLogo">BREADS ON FIRE<br><em>BRAVE FIGHTERS</em></div><div class="titleSlash"></div><div class="titlePress">'+(gamePrefs.lang==='en'?'PRESS ENTER TO START':gamePrefs.lang==='es'?'PULSA ENTER PARA COMENZAR':'PRESSIONE ENTER PARA COMEÇAR')+'</div><div class="titleHint">© BREADS ON FIRE · PROTOTYPE V3.3</div></div><button class="titleClick" data-action="enterTitle" aria-label="ENTER"></button>'}
  else if(menuPage==='home'){html=heading('MENU PRINCIPAL','ESCOLHA SEU PRÓXIMO DESAFIO')+'<div class="menuGrid">'+tile(t('play'),'PLAYER VS PLAYER · PLAYER VS CPU · CPU VS CPU','play','big')+tile(t('settings'),'GRÁFICOS · IDIOMA · TECLAS','settings','side')+tile(t('comic'),'FLIPTRU · BREADS ON FIRE','comic')+tile('TUTORIAL','GUIA DE COMBATE · WIKI','tutorial')+'</div>'}
  else if(menuPage==='tutorial'){
