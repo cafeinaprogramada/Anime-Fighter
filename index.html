@@ -117,9 +117,11 @@ function pollGamepads(){
 }
 function controlsFor(side){
  const d=playerDevices[side],i=assignedPad(side);
- if(i>=0&&padAvailable(i))return Object.fromEntries(['l','r','u','d','guard','punch','kick','heavy','fire'].map(k=>[k,padCode(i,k)]));
- // A disconnected gamepad can be replaced immediately by the side's original keyboard.
- return control[d==='keyboard1'?1:side===0?0:1];
+ const fallback=control[side];
+ if(i<0||!padAvailable(i))return control[d==='keyboard1'?1:0];
+ // Allow instantaneous keyboard takeover without pausing or reassigning the controller.
+ const keyboardActive=Object.values(fallback).some(code=>held.has(code)||edge.has(code)||dashTap.has(code));
+ return keyboardActive?fallback:Object.fromEntries(['l','r','u','d','guard','punch','kick','heavy','fire'].map(k=>[k,padCode(i,k)]));
 }
 
 function input(f,c){
