@@ -12,14 +12,31 @@ const transitionG=new PIXI.Graphics();cinema.addChild(transitionG);let transitio
 const bg=new PIXI.Graphics();scene.addChild(bg);bg.rect(0,0,W,H).fill(0x18233e);bg.circle(750,105,92).fill({color:0xffd389,alpha:.18});for(let i=0;i<12;i++){let x=i*91-15,y=215+(i%4)*21;bg.rect(x,y,76,220).fill(0x25304b);for(let j=0;j<5;j++)bg.rect(x+14,y+22+j*34,12,14).fill({color:0xffc879,alpha:.32})}bg.rect(0,FLOOR,W,H-FLOOR).fill(0x35415b);bg.rect(0,FLOOR,W,5).fill(0xe4b464);for(let x=0;x<W;x+=80)bg.moveTo(x,FLOOR).lineTo(x-55,H).stroke({color:0x65748b,alpha:.55,width:2});
 // Official first arena: a single full-frame image, scaled to the game's logical viewport.
 // The procedural rooftop remains a fallback if the asset fails to load.
+const STAGE_ASSETS={
+ saladeaula:'assets/stages/SaladeAula.png',
+ refeitorio:'assets/stages/Refeitorio.png',
+ areafora:'assets/stages/Area de Fora.png',
+ areaforadestruida:'assets/stages/Area de Fora Destruida.png'
+};
 const stageArt=new PIXI.Sprite(PIXI.Texture.WHITE);
 stageArt.width=W;stageArt.height=H;stageArt.visible=false;
 scene.addChild(stageArt);
-(async()=>{try{
- const texture=await PIXI.Assets.load('assets/stages/SaladeAula.png');
- stageArt.texture=texture;stageArt.width=W;stageArt.height=H;
- stageArt.visible=true;bg.visible=false;
-}catch(error){console.warn('SaladeAula: stage art unavailable; using rooftop fallback',error);stageArt.visible=false;bg.visible=true}})();
+let stageLoadVersion=0;
+async function loadStage(stageId){
+ const path=STAGE_ASSETS[stageId]||STAGE_ASSETS.saladeaula;
+ const version=++stageLoadVersion;
+ try{
+  const texture=await PIXI.Assets.load(path);
+  if(version!==stageLoadVersion)return;
+  stageArt.texture=texture;stageArt.width=W;stageArt.height=H;
+  stageArt.visible=true;bg.visible=false;
+ }catch(error){
+  if(version!==stageLoadVersion)return;
+  console.warn('Falha ao carregar cenário '+path+'; usando cenário provisório.',error);
+  stageArt.visible=false;bg.visible=true;
+ }
+}
+loadStage(gamePrefs.stage);
 const afterimageLayer=new PIXI.Container(),fighterLayer=new PIXI.Container(),projLayer=new PIXI.Container(),boxesG=new PIXI.Graphics(),hudG=new PIXI.Graphics(),vfxLayer=new PIXI.Container(),screenFX=new PIXI.Graphics();scene.addChild(afterimageLayer,fighterLayer,projLayer,vfxLayer,boxesG);ui.addChild(hudG);cinema.addChild(screenFX);
 const label=(s,x,y,size=22,color=0xffffff)=>{let t=new PIXI.Text({text:s,style:{fontFamily:'Arial',fontSize:size,fontWeight:'900',fill:color,stroke:{color:0x0b1020,width:4}}});t.anchor.set(.5);t.position.set(x,y);ui.addChild(t);return t};
 const l1=label('WESLEY',24,25,22,0xffe3aa),l2=label('WESLEY',W-24,25,22,0xffe3aa),clock=label('99',W/2,55,41,0xffe9b0),banner=label('WESLEY COMBAT LAB',W/2,178,45,0xffd98c),score=label('',W/2,103,17,0xffd5a1),combo=label('',W/2,134,19,0xffc879),subBanner=label('',W/2,221,22,0xffffff);
@@ -55,7 +72,7 @@ function clearCombatVFX(){
  vfxLayer.removeChildren().forEach(c=>c.destroy());
  screenFX.clear();cinemaFreeze=0;cinemaHold=0;flashScreen=0;shake=0;zoomTime=0;
 }
-function reset(){padDisconnectNotice.clear();app.canvas.style.visibility='visible';clearCombatVFX();transitionMode='opening';transitionAge=0;koGroundFrames=0;cameraX=W/2;cameraY=H/2;cameraZoom=1.08;cameraTilt=0;feedback=[[],[]];firstStrike=false;fighterLayer.removeChildren().forEach(x=>x.destroy());afterimageLayer.removeChildren().forEach(x=>x.destroy());projLayer.removeChildren().forEach(x=>x.destroy());fighters=[make(0,315),make(1,885)];l1.text=fighters[0].kind.toUpperCase();l2.text=fighters[1].kind.toUpperCase();projectiles=[];particles=[];time=mode==='training'?-1:gamePrefs.roundTime;wait=mode==='training'?0:215;phase='fight';announced=mode==='training'?'':('ROUND '+round);callout='';calloutTime=0;after=0;paused=false;held.clear();edge.clear();dashTap.clear()}
+function reset(){loadStage(selectedStage);padDisconnectNotice.clear();app.canvas.style.visibility='visible';clearCombatVFX();transitionMode='opening';transitionAge=0;koGroundFrames=0;cameraX=W/2;cameraY=H/2;cameraZoom=1.08;cameraTilt=0;feedback=[[],[]];firstStrike=false;fighterLayer.removeChildren().forEach(x=>x.destroy());afterimageLayer.removeChildren().forEach(x=>x.destroy());projLayer.removeChildren().forEach(x=>x.destroy());fighters=[make(0,315),make(1,885)];l1.text=fighters[0].kind.toUpperCase();l2.text=fighters[1].kind.toUpperCase();projectiles=[];particles=[];time=mode==='training'?-1:gamePrefs.roundTime;wait=mode==='training'?0:215;phase='fight';announced=mode==='training'?'':('ROUND '+round);callout='';calloutTime=0;after=0;paused=false;held.clear();edge.clear();dashTap.clear()}
 function start(){round=1;wins=[0,0];tick=0;reset()}
 function setState(f,s){if(f.state!==s){f.state=s;f.t=0}}
 function notify(id,message,tone='gold'){const dict=menuTranslations[gamePrefs.lang]||{};message=dict[message]||message;const stack=feedback[id];if(!stack)return;stack.unshift({message,tone,age:0,life:72});if(stack.length>3)stack.length=3}
@@ -724,7 +741,10 @@ function renderMenu(){if(menuSelectOpen)closeMenuSelect(false);let html='',t=tr;
  const slots=chars.map(c=>'<button type="button" class="rosterSlot" data-character="'+c.id+'" data-action="char:'+c.id+'">'+c.name.slice(0,3)+'</button>').join('')+'<button type="button" class="rosterSlot" data-character="random" data-action="char:random">?</button>'+Array.from({length:Math.max(0,8-chars.length-1)},()=>'<button class="rosterSlot" disabled>✦</button>').join('');
  html=heading(t(menuPage),'0'+(side+2)+' / 04 · SELECIONE SEU PERSONAGEM')+'<div class="fighterSelect">'+panel(side===0?'P1':other?.name||'P1',side===0?'HABILIDADE':other?.special||'HABILIDADE',false,side===0)+'<div class="rosterCenter"><div class="rosterHint">◈ '+t(menuPage)+' ◈</div><div class="rosterGrid">'+slots+'</div><div class="rosterHint">SETAS · ENTER · ESC</div></div>'+panel(side===1?'P2':other?.name||'P2',side===1?'HABILIDADE':other?.special||'HABILIDADE',true,side===1)+'</div>'+tile(t('back'),'','back','wide');
  }
- else if(menuPage==='stage'){html=heading(t('stage'),'04 / 04')+'<div class="menuCards">'+tile('SALA DE AULA',gamePrefs.lang==='en'?'CLASSROOM · AVAILABLE':gamePrefs.lang==='es'?'AULA · DISPONIBLE':'PRIMEIRA ARENA · DISPONÍVEL','stage:saladeaula')+Array.from({length:4},(_,i)=>tile('STAGE '+(i+2),'EM BREVE','', 'locked')).join('')+'</div><div class="menuSettings"><div class="menuSetting"><label>'+t('time')+'</label><select data-setting="time"><option value="60">60</option><option value="99">99</option><option value="180">180</option><option value="-1">∞</option></select></div><div class="menuSetting"><label>VELOCIDADE DE ENERGIA</label><select data-setting="staminaSpeed"><option value="slow">LENTA · -10%</option><option value="regular">REGULAR</option><option value="fast">RÁPIDA · +10%</option></select></div><div class="menuSetting"><label>'+t('difficulty')+'</label><select data-setting="difficulty"><option value="easy">EASY</option><option value="normal">NORMAL</option><option value="hard">HARD</option></select></div></div>'+tile(t('ready'),'','fight','wide')+tile(t('back'),'','back','wide')}
+ else if(menuPage==='stage'){html=heading(t('stage'),'04 / 04')+'<div class="menuCards">'+tile(gamePrefs.lang==='en'?'CLASSROOM':gamePrefs.lang==='es'?'SALÓN DE CLASES':'SALA DE AULA','01 · '+(gamePrefs.lang==='en'?'AVAILABLE':gamePrefs.lang==='es'?'DISPONIBLE':'DISPONÍVEL'),'stage:saladeaula')+
+ tile(gamePrefs.lang==='en'?'CAFETERIA':gamePrefs.lang==='es'?'COMEDOR':'REFEITÓRIO','02 · '+(gamePrefs.lang==='en'?'AVAILABLE':gamePrefs.lang==='es'?'DISPONIBLE':'DISPONÍVEL'),'stage:refeitorio')+
+ tile(gamePrefs.lang==='en'?'OUTSIDE AREA':gamePrefs.lang==='es'?'ÁREA EXTERIOR':'ÁREA DE FORA','03 · '+(gamePrefs.lang==='en'?'AVAILABLE':gamePrefs.lang==='es'?'DISPONIBLE':'DISPONÍVEL'),'stage:areafora')+
+ tile(gamePrefs.lang==='en'?'DESTROYED OUTSIDE AREA':gamePrefs.lang==='es'?'ÁREA EXTERIOR DESTRUIDA':'ÁREA DE FORA DESTRUÍDA','04 · '+(gamePrefs.lang==='en'?'AVAILABLE':gamePrefs.lang==='es'?'DISPONIBLE':'DISPONÍVEL'),'stage:areaforadestruida')+'</div><div class="menuSettings"><div class="menuSetting"><label>'+t('time')+'</label><select data-setting="time"><option value="60">60</option><option value="99">99</option><option value="180">180</option><option value="-1">∞</option></select></div><div class="menuSetting"><label>VELOCIDADE DE ENERGIA</label><select data-setting="staminaSpeed"><option value="slow">LENTA · -10%</option><option value="regular">REGULAR</option><option value="fast">RÁPIDA · +10%</option></select></div><div class="menuSetting"><label>'+t('difficulty')+'</label><select data-setting="difficulty"><option value="easy">EASY</option><option value="normal">NORMAL</option><option value="hard">HARD</option></select></div></div>'+tile(t('ready'),'','fight','wide')+tile(t('back'),'','back','wide')}
  else if(menuPage==='settings'||menuPage==='pauseSettings'){html=heading(t('settings'),'BENTO · PERFORMANCE · PERSONALIZAÇÃO')+'<div class="menuSettings">'+[['language',t('language'),[['pt','PORTUGUÊS BR'],['en','ENGLISH'],['es','ESPAÑOL']]],['particles',t('particles'),[['true','ON'],['false','OFF']]],['afterimages',t('afterimages'),[['true','ON'],['false','OFF']]],['shake',t('shake'),[['true','ON'],['false','OFF']]],['flashes',gamePrefs.lang==='en'?'SCREEN FLASHES':gamePrefs.lang==='es'?'DESTELLOS DE PANTALLA':'FLASHES DE TELA',[['true','ON'],['false','OFF']]],['impactRings',gamePrefs.lang==='en'?'IMPACT RINGS':gamePrefs.lang==='es'?'ONDAS DE IMPACTO':'ONDAS DE IMPACTO',[['true','ON'],['false','OFF']]],['cameraZoomFX',gamePrefs.lang==='en'?'CAMERA ZOOM / TILT':gamePrefs.lang==='es'?'ZOOM / INCLINACIÓN':'ZOOM / INCLINAÇÃO',[['true','ON'],['false','OFF']]],['projectileTrails',gamePrefs.lang==='en'?'PROJECTILE TRAILS':gamePrefs.lang==='es'?'ESTELAS DE PROYECTILES':'RASTROS DE PROJÉTEIS',[['true','ON'],['false','OFF']]],['comboMotion',gamePrefs.lang==='en'?'COMBO COUNTER MOTION':gamePrefs.lang==='es'?'MOVIMIENTO DE COMBOS':'MOVIMENTO DO COMBO',[['true','ON'],['false','OFF']]],['debug','DEBUG · HITBOXES', [['false','OFF'],['true','ON']]],['quality','QUALIDADE', [['high','HIGH'],['low','LOW']]]].map(([key,label,opts])=>'<div class="menuSetting"><label>'+label+'</label><select data-setting="'+key+'">'+opts.map(([v,n])=>'<option value="'+v+'">'+n+'</option>').join('')+'</select></div>').join('')+(menuPage==='settings'?'<div class="menuSetting"><label>'+t('controls')+'</label><button data-action="remap">'+t('controls')+'</button></div>':'')+'</div>'+tile(t('back'),'','back','wide')}
  else if(menuPage==='remap'||menuPage==='commands'){html=heading(menuPage==='remap'?t('controls'):t('commands'),'P1 / P2 · TECLADO')+'<div class="menuSettings compactCommands">'+control.map((c,i)=>Object.entries(c).map(([key,code])=>'<div class="menuSetting"><label>P'+(i+1)+' · '+key.toUpperCase()+'</label><button data-action="'+(menuPage==='remap'?'bind:'+i+':'+key:'noop')+'">'+code.replace('Key','').replace('Arrow','ARROW ')+'</button></div>').join('')).join('')+'</div><div class="menuInfo">GAMEPAD: ANALÓGICO ESQUERDO / DIRECIONAL · MOVER E PULAR | R1 · DEFESA | X · SOCO | ○ · CHUTE | □ · FORTE | △ · ESPECIAL<br>DOIS TOQUES NA DIREÇÃO · DASH (INCLUSIVE NO AR) | OPTIONS · PAUSA | X · CONFIRMAR | ○ · VOLTAR</div>'+tile(t('back'),'','back','wide')}
  else if(menuPage==='pause'){html=heading(t('pause'),'ENTER · OPTIONS')+'<div class="menuGrid">'+tile(t('resume'),'','resume','big')+tile(t('settings'),'','pauseSettings','side')+tile(t('commands'),'','commands')+tile(t('restart'),'','restart')+tile(t('select'),'','selection')+tile(t('home'),'','home','wide')+'</div>'}
@@ -752,7 +772,7 @@ function activateMenu(action){if(!action||action==='noop')return;
  if(action.startsWith('trainDevice:')){const device=action.slice('trainDevice:'.length);if(device.startsWith('pad')&&!padAvailable(Number(device.slice(3))))return;trainingDevice=device;playerDevices[0]=device;menuSwap('p1');return}
  if(action.startsWith('mode:')){matchType=action.split(':')[1];mode=matchType;if(mode==='training'){menuSwap('trainingDevice');return}if(mode==='local'){deviceDraft=[...playerDevices];menuSwap('devices')}else{playerDevices[0]=padAvailable(0)?'pad0':'keyboard0';menuSwap('p1')}return}
  if(action.startsWith('char:')){const c=action.split(':')[1],side=menuPage==='p1'?0:1;selected[side]=c==='random'?chars[Math.floor(Math.random()*chars.length)].id:c;document.getElementById(side?'char2':'char1').value=selected[side];menuSwap(side?'stage':'p2');return}
- if(action.startsWith('stage:')){selectedStage=action.split(':')[1];gamePrefs.stage=selectedStage;return}
+ if(action.startsWith('stage:')){const stage=action.split(':')[1];if(!STAGE_ASSETS[stage])return;selectedStage=stage;gamePrefs.stage=stage;loadStage(stage);renderMenu();return}
  if(action.startsWith('bind:')){const [,i,key]=action.split(':');remapTarget=[Number(i),key];const el=choices()[menuFocus];if(el)el.textContent='PRESS KEY…';return}
 }
 function startBattleIntro(){if(menuBusy)return;menuBusy=true;menuWipe.classList.add('closed');setTimeout(()=>{
