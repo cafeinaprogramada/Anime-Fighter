@@ -510,7 +510,8 @@ function animation(f){
   else col=Math.floor(tick/17)%3;
   f.sprite.texture=sheets.wesley[row]?.[col]||sheets.wesley[0]?.[0]||PIXI.Texture.WHITE;
   f.sprite.position.set(f.x,f.y);
-  f.sprite.scale.set(-SCALE*WESLEY2.scale*f.face,SCALE*WESLEY2.scale);
+  // Wesley2 faces right in the source art; keep P1 unmirrored and flip for P2.
+  f.sprite.scale.set(SCALE*WESLEY2.scale*f.face,SCALE*WESLEY2.scale);
   f.sprite.tint=f.shock>0?0xffef8b:f.flash&&tick%4<2?0xffbbbb:0xffffff;
   return;
  }
