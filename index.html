@@ -207,7 +207,7 @@ function jefreyArc(f,strong=false){
 }
 function jefreyLightning(x,y){burst(x,y,0xfff27a,38,'dash');burst(x,y,0xffffff,26,'spark');rings.push({x,y,r:13,age:0,max:20,kind:'guard'});flashScreen=Math.max(flashScreen,4)}
 function canAct(f){return !f.shock&&f.stun<=0&&!f.move&&f.state!=='attack'&&f.state!=='hurt'&&f.state!=='guardbreak'&&f.state!=='ko'}
-function attack(f,key){if(!canAct(f)||(!f.ground&&f.kind!=='chip'&&f.kind!=='jefrey'&&!(f.kind==='salvador'&&key==='fire'))||f.stamina<attackCost(f,key))return false;f.stamina-=attackCost(f,key);f.regenDelay=28;f.move={...M[key],name:key};if(f.kind==='salvador'&&key==='fire')salvadorSpark(f.x+f.face*45,f.y-110,12);if(f.kind==='vertonal'){f.move={...f.move,damage:f.move.damage*1.05,push:f.move.push*1.05,reach:key==='fire'?0:Math.round(f.move.reach*1.22)};if(key==='punch'){f.move={...f.move,start:Math.max(8,Math.round(f.move.start*.6)),recover:Math.max(9,Math.round(f.move.recover*.8))}}if(key==='fire'){f.move={...f.move,start:24,active:3,recover:22,cost:30};notify(f.id,'SONIC TRIAD','fire')}else vertonalMusic(f,7)}if(f.kind==='jefrey'){if(key==='fire'){f.move={name:'fire',row:7,start:144,active:1,recover:1,cost:M.fire.cost,damage:0,reach:0};f.boostCast=1;f.vx=0;f.dash=0;f.airDash=0;jefreyLightning(f.x,f.y-100);notify(f.id,'LIGHTNING FOCUS','gold')}else{f.move={...f.move,start:Math.max(10,Math.round(f.move.start*.72*(f.boost>0?.95:1))),active:Math.max(4,Math.round(f.move.active*(f.boost>0?.95:1))),recover:Math.max(15,Math.round(f.move.recover*.92*(f.boost>0?.95:1))),damage:f.move.damage*.85,stun:f.move.stun,reach:f.move.reach+10};f.boostCast=0}}if(f.kind==='chip'&&key==='fire'){f.move={...M.fire,name:'fire',row:7,start:16,active:67,recover:1};f.vx=0;f.dash=0;f.airDash=0;f.vy=0;f.flightLock=1;}if(f.kind==='chip'&&key==='heavy'&&!f.ground){f.diving=true;f.move={...M.heavy,name:'heavy',row:4,start:8,active:28,recover:7,reach:105};f.vy=5.5;}f.hit=false;f.vx=0;f.guard=false;setState(f,'attack');if(key==='fire')notify(f.id,'SPECIAL MOVE','fire');return true}
+function attack(f,key){if(!canAct(f)||(!f.ground&&f.kind!=='chip'&&f.kind!=='jefrey'&&!(f.kind==='salvador'&&key==='fire'))||f.stamina<attackCost(f,key))return false;f.stamina-=attackCost(f,key);f.regenDelay=28;f.move={...M[key],name:key};if(f.kind==='wesley'&&(key==='kick'||key==='heavy')){f.move.start=12;f.move.active=7;}if(f.kind==='salvador'&&key==='fire')salvadorSpark(f.x+f.face*45,f.y-110,12);if(f.kind==='vertonal'){f.move={...f.move,damage:f.move.damage*1.05,push:f.move.push*1.05,reach:key==='fire'?0:Math.round(f.move.reach*1.22)};if(key==='punch'){f.move={...f.move,start:Math.max(8,Math.round(f.move.start*.6)),recover:Math.max(9,Math.round(f.move.recover*.8))}}if(key==='fire'){f.move={...f.move,start:24,active:3,recover:22,cost:30};notify(f.id,'SONIC TRIAD','fire')}else vertonalMusic(f,7)}if(f.kind==='jefrey'){if(key==='fire'){f.move={name:'fire',row:7,start:144,active:1,recover:1,cost:M.fire.cost,damage:0,reach:0};f.boostCast=1;f.vx=0;f.dash=0;f.airDash=0;jefreyLightning(f.x,f.y-100);notify(f.id,'LIGHTNING FOCUS','gold')}else{f.move={...f.move,start:Math.max(10,Math.round(f.move.start*.72*(f.boost>0?.95:1))),active:Math.max(4,Math.round(f.move.active*(f.boost>0?.95:1))),recover:Math.max(15,Math.round(f.move.recover*.92*(f.boost>0?.95:1))),damage:f.move.damage*.85,stun:f.move.stun,reach:f.move.reach+10};f.boostCast=0}}if(f.kind==='chip'&&key==='fire'){f.move={...M.fire,name:'fire',row:7,start:16,active:67,recover:1};f.vx=0;f.dash=0;f.airDash=0;f.vy=0;f.flightLock=1;}if(f.kind==='chip'&&key==='heavy'&&!f.ground){f.diving=true;f.move={...M.heavy,name:'heavy',row:4,start:8,active:28,recover:7,reach:105};f.vy=5.5;}f.hit=false;f.vx=0;f.guard=false;setState(f,'attack');if(key==='fire')notify(f.id,'SPECIAL MOVE','fire');return true}
 function chipHop(f){if(f.kind!=='chip'||f.move||f.stun>0||f.hp<=0||f.diving)return false;const extra=!f.ground;if(extra&&f.stamina<staminaCost(f,5))return false;if(extra){f.stamina-=staminaCost(f,5);f.regenDelay=Math.max(f.regenDelay,24);burst(f.x,f.y-17,0xffffff,16,'spark');burst(f.x,f.y-12,0xffed73,20,'dash');particleEmitter(f.x,f.y-20,'chip',170)}f.vy=-10.9;f.ground=false;f.airDashUsed=false;f.flightMode='jump';f.hover=false;setState(f,'jump');return true}
 
 // Gamepad API: standard mapping (PlayStation labels), D-pad + left analog stick.
@@ -531,9 +531,17 @@ function aiStrikeDive(f){
  return attack(f,'heavy');
 }
 
-function body(f){const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
-function push(f){const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
-function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
+function body(f){if(f.kind==='wesley')return[{x:f.x-30,y:f.y-201,w:60,h:196},{x:f.x-25,y:f.y-202,w:50,h:62}];const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
+function push(f){if(f.kind==='wesley')return{x:f.x-27,y:f.y-87,w:54,h:85};const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
+function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;
+ if(f.kind==='wesley'){
+  // Frame 2 is the active strike pose for the updated kick and advancing heavy.
+  const kick=m.name==='kick',heavy=m.name==='heavy';
+  const reach=kick?112:heavy?118:m.reach;
+  const y=f.y-(kick?99:heavy?144:165),height=kick?45:heavy?48:53;
+  return{x:f.face===1?f.x+30:f.x-30-reach,y,w:reach,h:height};
+ }
+ let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
 
 function intersect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function collision(a,b){return b.some(r=>intersect(a,r))}
@@ -610,7 +618,7 @@ function animation(f){
   let col=0;
   if(f.state==='attack'&&f.move){
    const m=f.move;
-   col=f.t<m.start*.55?0:f.t<m.start?1:2;
+   col=(m.name==='kick'||m.name==='heavy')?f.t<m.start*.55?0:f.t<m.start+m.active?1:2:f.t<m.start*.55?0:f.t<m.start?1:2;
   }else if(row===7)col=Math.min(2,Math.floor(f.t/5));
   else if(row===11||row===12)col=Math.min(2,Math.floor(f.t/13));
   else if(row===1||row===6)col=Math.floor(tick/7)%3;
