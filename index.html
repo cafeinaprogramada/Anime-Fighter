@@ -379,6 +379,10 @@ function ai(f,enemy){
  const level=document.getElementById('difficulty').value;
  const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*profile.speed*(f.kind==='chip'&&!f.ground?1.6:1);
  const can=k=>!!M[k]&&f.stamina>=attackCost(f,k);
+ // Every 10 seconds, a 1-in-6 tactical opportunity modestly favors a special.
+ if(q.specialNext===undefined)q.specialNext=tick+600;
+ if(tick>=q.specialNext){q.specialNext=tick+600;q.specialPlan=Math.random()<1/6?90:0}
+ if(q.specialPlan>0)q.specialPlan--;
  // Re-evaluate the combat approach every three seconds, with a 25% aggression bias.
  if(tick>=q.tacticUntil){
   const hurt=f.hp<enemy.hp-18,close=p.dist<245,healthy=f.stamina>24;
@@ -393,6 +397,15 @@ function ai(f,enemy){
  q.matchupCooldown=Math.max(0,(q.matchupCooldown||0)-1);q.airPlan=Math.max(0,(q.airPlan||0)-1);
  q.timer=Math.max(0,q.timer-1);q.moveCooldown=Math.max(0,(q.moveCooldown||0)-1);q.panicCooldown=Math.max(0,(q.panicCooldown||0)-1);q.spaceCooldown=Math.max(0,(q.spaceCooldown||0)-1);
  if(!canAct(f))return;
+ // Short special setup: only when safe and affordable; existing defense takes precedence.
+ if(q.specialPlan>0&&q.cooldown===0&&can('fire')&&!p.threat&&f.stun<=0&&f.hp>0){
+  const target=f.kind==='chip'?175:f.kind==='jefrey'?385:f.kind==='vertonal'?230:260;
+  const ready=f.kind==='chip'?p.dist<245:f.kind==='jefrey'?f.ground&&p.dist>335&&f.boost<90:f.kind==='vertonal'?f.ground&&p.dist>105&&p.dist<310:f.ground;
+  if(ready&&Math.random()<.10){if(attack(f,'fire')){q.cooldown=95;q.specialPlan=0;return}}
+  if(f.kind==='chip'&&p.dist>target+35&&p.forward>60){f.vx=p.dir*speed*.8;setState(f,f.ground?'walk':'jump');return}
+  if(f.kind==='jefrey'&&f.ground&&p.dist<target-30&&p.backward>75){f.vx=-p.dir*speed*.85;setState(f,'back');return}
+  if(f.kind==='vertonal'&&f.ground&&p.dist>target+40&&p.forward>75){f.vx=p.dir*speed*.75;setState(f,'walk');return}
+ }
  // Preserve active dash momentum: the normal AI decision loop must not overwrite it.
  if(f.dash>0||f.airDash>0)return;
  f.guard=false;f.crouch=false;f.vx=0;
@@ -552,7 +565,7 @@ function aiStrikeDive(f){
 // Sprite art is not centered within its transparent 514px cells.
 function collisionProfile(f){
  if(f.kind==='wesley')return {cx:f.x-f.face*22,top:205,bw:87,bh:198,hw:63,hh:68,pw:66,ph:93,front:35};
- if(f.kind==='chip')return {cx:f.x,top:178,bw:84,bh:174,hw:60,hh:59,pw:65,ph:83,front:34};
+ if(f.kind==='chip')return {cx:f.x,top:178,bw:84,bh:174,hw:60,hh:59,pw:71.5,ph:83,front:34};
  if(f.kind==='jefrey')return {cx:f.x-f.face*36,top:199,bw:91,bh:193,hw:62,hh:66,pw:70,ph:88,front:34};
  return null;
 }
@@ -585,9 +598,9 @@ a.stop=blocked?5:8;b.stop=blocked?5:8;a.meter=Math.min(100,a.meter+8);b.meter=Ma
 
 function update(){tick++;if(cinemaFreeze>0){cinemaFreeze--;edge.clear();dashTap.clear();return}if(calloutTime>0)calloutTime--;if(flashScreen>0)flashScreen--;if(zoomTime>0)zoomTime--;if(edge.has('Space')&&!menuVisible)paused=!paused;if(paused||phase==='select'||phase==='over'){edge.clear();dashTap.clear();return}if(phase==='result'){
  after++;let falling=false;
- for(let f of fighters){f.t++;if(f.koFalling){falling=true;f.y+=f.vy;f.vy+=GRAV*.85;f.x=Math.max(35,Math.min(W-35,f.x-f.face*1.8));if(f.y>=FLOOR){f.y=FLOOR;f.vy=0;f.koFalling=false;f.koLanded=true;f.ground=true;setState(f,'ko');burst(f.x,FLOOR-9,0xffdf83,15,'dash');shake=8}}}
+ for(let f of fighters){f.t++;if(f.victoryLanding){f.y+=f.vy;f.vy+=GRAV;f.x+=f.vx;f.vx*=.82;if(f.y>=FLOOR){f.y=FLOOR;f.vy=0;f.vx=0;f.ground=true;f.victoryLanding=false;setState(f,'victory')}else falling=true}if(f.koFalling){falling=true;f.y+=f.vy;f.vy+=GRAV*.85;f.x=Math.max(35,Math.min(W-35,f.x-f.face*1.8));if(f.y>=FLOOR){f.y=FLOOR;f.vy=0;f.koFalling=false;f.koLanded=true;f.ground=true;setState(f,'ko');burst(f.x,FLOOR-9,0xffdf83,15,'dash');shake=8}}}
  // Keep the defeated fighter grounded for two full seconds; let residual VFX expire.
- if(!falling&&(fighters.some(f=>f.koLanded)||time===0))koGroundFrames++;else koGroundFrames=0;
+ if(!falling&&(fighters.some(f=>f.koLanded)||time===0||fighters.every(f=>f.ground)))koGroundFrames++;else koGroundFrames=0;
  for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=p.kind==='electric'?0:.22;p.life--}
  particles=particles.filter(p=>p.life>0);
  for(let i=rings.length-1;i>=0;i--){rings[i].age++;if(rings[i].age>=rings[i].max)rings.splice(i,1)}
@@ -617,7 +630,7 @@ if(shield){p.life=0;const x=p.x,y=p.y;burst(x,y,0xffffff,55,'spark');burst(x,y,0
 if(collision(box,body(enemy))&&(!p.music||!p.volley.hit)){if(p.music){p.volley.hit=true;impact(owner,enemy,{...M.fire,name:'fire',damage:M.fire.damage*1.05,stun:38,block:20,push:13*1.05*2},true);enemy.vx*=1.6;p.life=0;vertonalMusic({x:p.x,y:p.y+110},20);rings.push({x:p.x,y:p.y,r:12,age:0,max:23,kind:'guard'})}else if(p.lightning){const blocked=enemy.guard&&enemy.ground&&!enemy.guardBroken&&enemy.face===-owner.face;impact(owner,enemy,{...M.fire,name:'fire',stun:120,push:2},true);p.life=0;salvadorSpark(p.x,p.y,24);rings.push({x:enemy.x,y:enemy.y-105,r:18,age:0,max:24,kind:'electric'});if(!blocked&&enemy.hp>0){enemy.shock=240;enemy.stun=240;enemy.vx=0;enemy.vy=0;enemy.dash=0;enemy.airDash=0;enemy.ground=true;enemy.guard=false;enemy.move=null;setState(enemy,'hurt');notify(enemy.id,'PARALISADO · 4s','danger')}}else{impact(owner,enemy,{...M.fire,name:'fire'},true);p.life=0;burst(p.x,p.y,0xffb75b,44,'flame');particleEmitter(p.x,p.y,'fire',460);cinematic(p.x,p.y,'fire')}}}projectiles=projectiles.filter(p=>p.life>0&&p.x>-80&&p.x<W+80&&p.y>-80&&p.y<H+80&&(!p.music||!p.volley.hit));
 for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=p.kind==='dust'?-.002:p.kind==='electric'?0:.22;p.life--}particles=particles.filter(p=>p.life>0);if(particles.length>MAX_PARTICLES)particles.splice(0,particles.length-MAX_PARTICLES);shake*=.76;
 if(mode==='training'){a.hp=100;b.hp=100;time=-1}
-if(mode!=='training'&&(a.hp<=0||b.hp<=0||(gamePrefs.roundTime!==-1&&time===0))){koGroundFrames=0;let winner=a.hp===b.hp?-1:a.hp>b.hp?0:1;if(winner>=0)wins[winner]++;announced=winner<0?'EMPATE':fighters[winner].kind.toUpperCase()+' VENCEU!';phase='result';after=0;projectiles.length=0;chipFields.length=0;for(const e of vfxEmitters){e.em.emit=false;e.ttl=Math.min(e.ttl,.7)};announce(gamePrefs.roundTime!==-1&&time===0?'TIME OVER!':'K.O.!',105);zoomTime=35;flashScreen=12;fighters.forEach((f,i)=>{f.move=null;f.diving=false;f.dash=0;f.airDash=0;f.vx=0;if(winner!==i){f.koFalling=true;f.koLanded=false;f.koBounce=false;f.ground=false;f.vy=-9.5;setState(f,'hurt')}else setState(f,'victory')})}edge.clear();dashTap.clear()}
+if(mode!=='training'&&(a.hp<=0||b.hp<=0||(gamePrefs.roundTime!==-1&&time===0))){koGroundFrames=0;let winner=a.hp===b.hp?-1:a.hp>b.hp?0:1;if(winner>=0)wins[winner]++;announced=winner<0?'EMPATE':fighters[winner].kind.toUpperCase()+' VENCEU!';phase='result';after=0;projectiles.length=0;chipFields.length=0;for(const e of vfxEmitters){e.em.emit=false;e.ttl=Math.min(e.ttl,.7)};announce(gamePrefs.roundTime!==-1&&time===0?'TIME OVER!':'K.O.!',105);zoomTime=35;flashScreen=12;fighters.forEach((f,i)=>{f.move=null;f.diving=false;f.dash=0;f.airDash=0;f.vx=0;f.victoryLanding=false;if(winner!==i){f.koFalling=true;f.koLanded=false;f.koBounce=false;f.ground=false;f.vy=-9.5;setState(f,'hurt')}else if(!f.ground||f.y<FLOOR-1){f.victoryLanding=true;f.vy=Math.max(f.vy,0);setState(f,'jump')}else{f.y=FLOOR;f.vy=0;f.ground=true;setState(f,'victory')}})}edge.clear();dashTap.clear()}
 function animation(f){
  if(f.kind==='chip'){
   // Chip2: idle, walk, jump, dash, guard, punch, kick, heavy, special, victory, hurt, defeat.
