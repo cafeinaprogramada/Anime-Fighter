@@ -201,8 +201,12 @@ function clearCombatVFX(){
  vfxLayer.removeChildren().forEach(c=>c.destroy());
  screenFX.clear();cinemaFreeze=0;cinemaHold=0;flashScreen=0;shake=0;zoomTime=0;
 }
+// Lightweight between-round tendencies: match-local, per opponent slot; never replaces AI trees.
+let aiRoundMemory=[null,null];
+function aiMemoryBias(f,enemy,level){const m=aiRoundMemory[f.id];if(!m||level==='easy')return {retreat:0,air:0,dive:0};const factor=level==='hard'?1:.45;return {retreat:(m.rush>.48?.055:0)*factor,air:(m.ground>.68?.055:0)*factor,dive:(m.ground>.68?.06:0)*factor}}
+function rememberRound(){if(mode!=='cpu'&&mode!=='cpu-cpu')return;for(const f of fighters){const e=fighters[1-f.id];if(!e)continue;const prev=aiRoundMemory[f.id];const seen=e.roundObserved||{frames:0,near:0,ground:0};const n=Math.max(1,seen.frames);const fresh={rush:seen.near/n,ground:seen.ground/n};aiRoundMemory[f.id]=prev?{rush:prev.rush*.4+fresh.rush*.6,ground:prev.ground*.4+fresh.ground*.6}:fresh}}
 function reset(){audioEngine.switchMusic(selectedStage==='refeitorio'?'refeitorio':null);loadStage(selectedStage);padDisconnectNotice.clear();document.body.classList.add('combat-active');app.canvas.style.visibility='visible';clearCombatVFX();transitionMode='opening';transitionAge=0;koGroundFrames=0;cameraX=W/2;cameraY=H/2;cameraZoom=1.08;cameraTilt=0;feedback=[[],[]];firstStrike=false;fighterLayer.removeChildren().forEach(x=>x.destroy());afterimageLayer.removeChildren().forEach(x=>x.destroy());projLayer.removeChildren().forEach(x=>x.destroy());fighters=[make(0,315),make(1,885)];l1.text=fighters[0].kind.toUpperCase();l2.text=fighters[1].kind.toUpperCase();projectiles=[];particles=[];time=mode==='training'?-1:gamePrefs.roundTime;wait=mode==='training'?0:215;phase='fight';announced=mode==='training'?'':('ROUND '+round);callout='';calloutTime=0;after=0;paused=false;held.clear();edge.clear();dashTap.clear()}
-function start(){round=1;wins=[0,0];tick=0;reset()}
+function start(){round=1;wins=[0,0];tick=0;aiRoundMemory=[null,null];reset()}
 function setState(f,s){if(f.state!==s){f.state=s;f.t=0}}
 function notify(id,message,tone='gold'){const dict=menuTranslations[gamePrefs.lang]||{};message=dict[message]||message;const stack=feedback[id];if(!stack)return;stack.unshift({message,tone,age:0,life:72});if(stack.length>3)stack.length=3}
 function staminaCost(f,amount){return amount*(f.kind==='jefrey'?.7:f.kind==='chip'?.85:1)}
@@ -325,7 +329,7 @@ function aiPerception(f,e){
 }
 function aiDash(f,p,profile,level){
  if(!f.ground||p.forward<130||f.ai.dashCooldown>0)return false;
- f.dash=profile.dash;f.dashDir=p.dir;f.vx=p.dir*10.2*profile.speed;
+ f.dash=Math.round(profile.dash*1.1);f.dashDir=p.dir;f.vx=p.dir*11.22*profile.speed;
  f.ai.dashCooldown=level==='hard'?36:55;
  if(f.kind==='jefrey')jefreySmoke(f);
  else burst(f.x,f.y-50,0x8feaff,16,'dash');
@@ -335,7 +339,7 @@ function aiDirectionalDash(f,dir,profile,level){
  if(!f.ground||f.ai.dashCooldown>0)return false;
  const room=dir>0?W-45-f.x:f.x-45;
  if(room<110)return false;
- f.dash=profile.dash;f.dashDir=dir;f.vx=dir*10.2*profile.speed;
+ f.dash=Math.round(profile.dash*1.1);f.dashDir=dir;f.vx=dir*11.22*profile.speed;
  f.ai.dashCooldown=level==='hard'?28:40;
  if(f.kind==='jefrey')jefreySmoke(f);
  else burst(f.x,f.y-50,0x8feaff,10,'dash');
@@ -378,6 +382,8 @@ function ai(f,enemy){
  const q=f.ai,profile=AI_PROFILES[f.kind],p=aiPerception(f,enemy);
  const level=document.getElementById('difficulty').value;
  const speed=(level==='hard'?4.623:level==='easy'?3.036:3.933)*profile.speed*(f.kind==='chip'&&!f.ground?1.6:1);
+ const memory=aiMemoryBias(f,enemy,level);
+ // Adaptation is a small bias on existing movement choices, not a new AI controller.
  const can=k=>!!M[k]&&f.stamina>=attackCost(f,k);
  // Every 10 seconds, a 1-in-6 tactical opportunity modestly favors a special.
  if(q.specialNext===undefined)q.specialNext=tick+600;
@@ -402,8 +408,8 @@ function ai(f,enemy){
   const target=f.kind==='chip'?175:f.kind==='jefrey'?385:f.kind==='vertonal'?230:260;
   const ready=f.kind==='chip'?p.dist<245:f.kind==='jefrey'?f.ground&&p.dist>335&&f.boost<90:f.kind==='vertonal'?f.ground&&p.dist>105&&p.dist<310:f.ground;
   if(ready&&Math.random()<.10){if(attack(f,'fire')){q.cooldown=95;q.specialPlan=0;return}}
-  if(f.kind==='chip'&&p.dist>target+35&&p.forward>60){f.vx=p.dir*speed*.8;setState(f,f.ground?'walk':'jump');return}
-  if(f.kind==='jefrey'&&f.ground&&p.dist<target-30&&p.backward>75){f.vx=-p.dir*speed*.85;setState(f,'back');return}
+  if(f.kind==='chip'&&p.dist>target+35&&p.forward>60){f.vx=p.dir*speed*.88;setState(f,f.ground?'walk':'jump');return}
+  if(f.kind==='jefrey'&&f.ground&&p.dist<target-30&&p.backward>75){f.vx=-p.dir*speed*.935;setState(f,'back');return}
   if(f.kind==='vertonal'&&f.ground&&p.dist>target+40&&p.forward>75){f.vx=p.dir*speed*.75;setState(f,'walk');return}
  }
  // Preserve active dash momentum: the normal AI decision loop must not overwrite it.
@@ -420,7 +426,7 @@ function ai(f,enemy){
  if(q.panicEscape&&f.ground)q.panicEscape=false;
  // New defensive movement branch, preserving all existing offensive AI.
  const cornered=p.backward<175&&p.dist<260,losing=f.hp+15<enemy.hp;
- if(f.ground&&q.escapeCooldown===0&&f.stamina>20&&(cornered||p.dist<170&&losing)&&Math.random()<(aggressive?.055:.18)){
+ if(f.ground&&q.escapeCooldown===0&&f.stamina>20&&(cornered||p.dist<170&&losing)&&Math.random()<(aggressive?.0605:.198)+memory.retreat){
   q.escapeDir=f.x<W/2?1:-1;q.escapeFrames=26;q.escapeCooldown=170+Math.floor(Math.random()*100);
   f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;f.vx=q.escapeDir*speed;
   setState(f,'jump');return;
@@ -432,7 +438,7 @@ function ai(f,enemy){
  // Commit to one spacing decision for several frames; only urgent defense interrupts it.
  if(f.ground&&q.moveCommit>0&&!aggressive&&!p.threat){
   const room=q.moveDir>0?W-45-f.x:f.x-45;
-  if(room>42){q.moveCommit--;f.vx=q.moveDir*speed*.95;setState(f,f.vx*p.dir>0?'walk':'back');return}
+  if(room>42){q.moveCommit--;f.vx=q.moveDir*speed*1.045;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.moveCommit=0;
  }
 
@@ -441,7 +447,7 @@ function ai(f,enemy){
  if(f.ground&&q.spaceTimer>0&&!aggressive&&!p.threat){
   if(p.dist<155&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
   const room=q.spaceDir>0?W-45-f.x:f.x-45;
-  if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.85;setState(f,f.vx*p.dir>0?'walk':'back');return}
+  if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.935;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.spaceTimer=0;
  }
  // Matchup-specific counterplay: change angles rather than trade stamina point blank.
@@ -504,8 +510,8 @@ function ai(f,enemy){
    f.vx=p.dist>80?p.dir*speed*1.12:p.dir*speed*.75;setState(f,'jump');return;
   }
   if(f.kind==='chip'){
-   if(!p.low&&p.dist<245&&f.y<enemy.y-35&&can('heavy')&&Math.random()<.33&&aiStrikeDive(f)){q.cooldown=30;return}
-   if(!p.low&&f.vy>0&&f.y>235&&p.dist<390&&Math.random()<(level==='hard'?.13:.095)&&chipHop(f))return;
+   if(!p.low&&p.dist<245&&f.y<enemy.y-35&&can('heavy')&&Math.random()<.363+memory.dive&&aiStrikeDive(f)){q.cooldown=30;return}
+   if(!p.low&&f.vy>0&&f.y>235&&p.dist<390&&Math.random()<(level==='hard'?.143:.1045)+memory.air&&chipHop(f))return;
   }
   if(f.kind==='jefrey'&&p.dist<165&&can('kick')&&q.cooldown===0&&Math.random()<.13&&aiStrike(f,p,level))return;
   if(!f.airDashUsed&&p.dist>140&&p.dist<440&&p.forward>100&&Math.random()<(f.kind==='chip'?.1:.06)){
@@ -525,7 +531,7 @@ function ai(f,enemy){
    if(room>70){q.spaceDir=retreat;q.spaceTimer=20+Math.floor(Math.random()*28);q.moveCooldown=75;f.vx=retreat*speed*.85;setState(f,'back');return}
   }
   if(p.dist<125&&q.cooldown===0&&can('punch')&&p.enemyRecover&&aiStrike(f,p,level))return;
-  if(p.dist<preferred-25&&p.backward>75)f.vx=-p.dir*speed*.8;
+  if(p.dist<preferred-25&&p.backward>75)f.vx=-p.dir*speed*.88;
   else if(p.dist>preferred+40&&p.forward>70)f.vx=p.dir*speed*.7;
   else if(p.dist<105&&p.backward<=75&&can('punch')&&q.cooldown===0&&aiStrike(f,p,level))return;
   setState(f,f.vx?(f.vx*p.dir>0?'walk':'back'):'idle');return;
@@ -539,7 +545,7 @@ function ai(f,enemy){
  if(f.kind==='jefrey'&&f.ground&&p.dist>355&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
- if(f.stamina>35&&p.dist>140&&p.dist<395&&q.cooldown===0&&Math.random()<Math.max(profile.air,aggressive&&f.kind==='chip'?.07:.023)){
+ if(f.stamina>35&&p.dist>140&&p.dist<395&&q.cooldown===0&&Math.random()<Math.max(profile.air*(f.kind==='chip'?1.1:1),aggressive&&f.kind==='chip'?.077:.0253)+memory.air){
   if(f.kind==='chip'){if(chipHop(f)){q.cooldown=14;return}}
   else{f.vy=-15.5;f.ground=false;f.airDashUsed=false;f.airDash=0;if(f.kind==='jefrey')jefreySmoke(f);setState(f,'jump');q.cooldown=12;return}
  }
@@ -550,7 +556,7 @@ function ai(f,enemy){
   if(q.spaceTimer===0&&q.spaceCooldown===0){q.spaceDir=p.dir;q.spaceTimer=32+Math.floor(Math.random()*22);q.spaceCooldown=55}
   f.vx=p.dir*speed;setState(f,'walk');return;
  }
- if(!aggressive&&p.dist<90&&p.backward>85&&q.spaceCooldown===0&&Math.random()<.06){q.spaceDir=-p.dir;q.spaceTimer=20+Math.floor(Math.random()*20);q.spaceCooldown=60;
+ if(!aggressive&&p.dist<99&&p.backward>85&&q.spaceCooldown===0&&Math.random()<.06){q.spaceDir=-p.dir;q.spaceTimer=20+Math.floor(Math.random()*20);q.spaceCooldown=60;
   f.vx=-p.dir*speed*.65;setState(f,'back');return;
  }
  if(p.dist<=(f.kind==='vertonal'?255:205)&&q.cooldown===0&&aiStrike(f,p,level))return;
@@ -610,7 +616,8 @@ function update(){tick++;if(cinemaFreeze>0){cinemaFreeze--;edge.clear();dashTap.
   if(transitionAge>=21){clearCombatVFX();if(wins.some(v=>v>=2)){phase='over';transitionMode='opening';transitionAge=0;announced=(fighters[wins[0]>wins[1]?0:1]?.kind||'LUTADOR').toUpperCase()+' CAMPEÃO!';showGamePanel('victory')}else{round++;reset()}}
  }
  edge.clear();dashTap.clear();return}
- if(wait>0){wait--;if(wait===214)announce('ROUND '+round,55);if(wait===70)announce('FIGHT!',52);for(let f of fighters)f.t++;edge.clear();dashTap.clear();return}if(mode!=='training'&&tick%60===0&&gamePrefs.roundTime!==-1)time=Math.max(0,time-1);let [a,b]=fighters;if(mode==='cpu-cpu')ai(a,b);else input(a,controlsFor(0));if(mode==='cpu'||mode==='cpu-cpu')ai(b,a);else if(mode!=='training')input(b,controlsFor(1));for(let f of fighters){if(f.stop>0){f.stop--;continue}if(f.flash>0)f.flash--;if(f.comboTime>0)f.comboTime--;else f.combo=0;if(f.airDash>0&&!f.ground&&f.stun<=0&&!f.move){f.airDash--;f.vx=f.airDashDir*12.4*(f.kind==='chip'?1.6:f.kind==='jefrey'?1.21:1);if(f.kind!=='chip')f.vy*=.2;if(tick%2===0){burst(f.x-f.airDashDir*24,f.y-92,f.kind==='chip'?0xffe891:0x7bdcff,7,'dash');burst(f.x-f.airDashDir*16,f.y-110,0xffffff,3,'spark')}}if(f.dash>0){f.dash--;if(!f.move&&!f.guard&&f.stun<=0)f.vx=f.dashDir*10.2*(f.kind==='jefrey'?1.21:1);if(tick%2===0)burst(f.x-f.dashDir*22,f.y-36,0xffd17a,3,'dash')}if(f.boost>0)f.boost--;if(f.regenDelay>0)f.regenDelay--;else if(!f.guard&&!f.move&&f.stamina<100){const pace=gamePrefs.staminaSpeed==='slow'?.9:gamePrefs.staminaSpeed==='fast'?1.1:1;f.stamina=Math.min(100,f.stamina+.32*1.05*(f.kind==='jefrey'?1.1:1)*pace*(Math.abs(f.vx)>.1?.5:1))}if(f.guardBroken&&f.stamina>=20)f.guardBroken=false;if(f.shock>0){f.shock--;f.stun=Math.max(f.stun,f.shock);f.vx=0;f.vy=0;f.move=null;f.guard=false;setState(f,'hurt');if(tick%2===0)salvadorSpark(f.x,f.y-103,8);if(f.shock===0){f.stun=0;setState(f,'idle')}continue}if(f.stun>0){f.stun--;if(f.stun===0)setState(f,'idle')}if(f.kind==='vertonal'&&f.move&&tick%4===0)vertonalMusic(f,3);if(f.kind==='salvador'&&tick%3===0&&f.hp>0)salvadorSpark(f.x,f.y-102,f.move?9:5);
+ if(wait>0){wait--;if(wait===214)announce('ROUND '+round,55);if(wait===70)announce('FIGHT!',52);for(let f of fighters)f.t++;edge.clear();dashTap.clear();return}if((mode==='cpu'||mode==='cpu-cpu')&&tick%6===0){for(const f of fighters){const e=fighters[1-f.id];if(!e)continue;const obs=f.roundObserved||(f.roundObserved={frames:0,near:0,ground:0});obs.frames++;if(Math.abs(f.x-e.x)<195)obs.near++;if(f.ground)obs.ground++}}
+ if(mode!=='training'&&tick%60===0&&gamePrefs.roundTime!==-1)time=Math.max(0,time-1);let [a,b]=fighters;if(mode==='cpu-cpu')ai(a,b);else input(a,controlsFor(0));if(mode==='cpu'||mode==='cpu-cpu')ai(b,a);else if(mode!=='training')input(b,controlsFor(1));for(let f of fighters){if(f.stop>0){f.stop--;continue}if(f.flash>0)f.flash--;if(f.comboTime>0)f.comboTime--;else f.combo=0;if(f.airDash>0&&!f.ground&&f.stun<=0&&!f.move){f.airDash--;f.vx=f.airDashDir*12.4*(f.kind==='chip'?1.6:f.kind==='jefrey'?1.21:1);if(f.kind!=='chip')f.vy*=.2;if(tick%2===0){burst(f.x-f.airDashDir*24,f.y-92,f.kind==='chip'?0xffe891:0x7bdcff,7,'dash');burst(f.x-f.airDashDir*16,f.y-110,0xffffff,3,'spark')}}if(f.dash>0){f.dash--;if(!f.move&&!f.guard&&f.stun<=0)f.vx=f.dashDir*10.2*(f.kind==='jefrey'?1.21:1);if(tick%2===0)burst(f.x-f.dashDir*22,f.y-36,0xffd17a,3,'dash')}if(f.boost>0)f.boost--;if(f.regenDelay>0)f.regenDelay--;else if(!f.guard&&!f.move&&f.stamina<100){const pace=gamePrefs.staminaSpeed==='slow'?.9:gamePrefs.staminaSpeed==='fast'?1.1:1;f.stamina=Math.min(100,f.stamina+.32*1.05*(f.kind==='jefrey'?1.1:1)*pace*(Math.abs(f.vx)>.1?.5:1))}if(f.guardBroken&&f.stamina>=20)f.guardBroken=false;if(f.shock>0){f.shock--;f.stun=Math.max(f.stun,f.shock);f.vx=0;f.vy=0;f.move=null;f.guard=false;setState(f,'hurt');if(tick%2===0)salvadorSpark(f.x,f.y-103,8);if(f.shock===0){f.stun=0;setState(f,'idle')}continue}if(f.stun>0){f.stun--;if(f.stun===0)setState(f,'idle')}if(f.kind==='vertonal'&&f.move&&tick%4===0)vertonalMusic(f,3);if(f.kind==='salvador'&&tick%3===0&&f.hp>0)salvadorSpark(f.x,f.y-102,f.move?9:5);
  if(f.kind==='jefrey'&&(f.boost>0||f.move?.name==='fire')&&tick%5===0)jefreyArc(f,f.move?.name==='fire');if(f.kind==='jefrey'){const moving=Math.abs(f.vx)>1&&!f.move&&f.ground;if(moving!==f.fxMoving)f.fxMoving=moving}if(f.move){if(f.kind==='chip'&&f.move.name==='fire'){f.vx=0;f.vy=0;f.dash=0;f.airDash=0}if(f.diving){f.vx=f.face*6.3;f.vy=Math.min(14,f.vy+GRAV);if(tick%3===0){burst(f.x-f.face*20,f.y-70,0xffe68a,5,'dash')}}f.t++;if(f.kind==='jefrey'&&f.move.name==='fire'&&f.t%18===0){jefreyLightning(f.x,f.y-100)}if(f.kind==='jefrey'&&f.move.name==='fire'&&f.t===144){f.boost=600;f.boostCast=0;notify(f.id,'SPEED +5% · 10s','gold');jefreyLightning(f.x,f.y-95)}if(f.move.name==='heavy'&&!f.diving){if(f.kind==='wesley'){if(f.t>=Math.ceil(f.move.start*.55)&&f.t<=f.move.start+f.move.active)f.x+=f.face*4.2}else if(f.t>=f.move.start-8&&f.t<=f.move.start+2)f.x+=f.face*4.2}if(f.move.name==='fire'&&f.t===f.move.start&&f.kind==='chip'){chipFields.push({owner:f.id,age:0,duration:67,hits:new Set(),radius:142});burst(f.x,f.y-95,0xfff2a2,65,'spark');particleEmitter(f.x,f.y-95,'chip',1100);notify(f.id,'RADIANT FIELD · 3 HITS','fire');cinemaHold=Math.max(cinemaHold,15)}
 if(f.move.name==='fire'&&f.t===f.move.start&&f.kind==='vertonal'){
  const volley={hit:false};const px=f.x,py=f.y-112;
@@ -630,7 +637,7 @@ if(shield){p.life=0;const x=p.x,y=p.y;burst(x,y,0xffffff,55,'spark');burst(x,y,0
 if(collision(box,body(enemy))&&(!p.music||!p.volley.hit)){if(p.music){p.volley.hit=true;impact(owner,enemy,{...M.fire,name:'fire',damage:M.fire.damage*1.05,stun:38,block:20,push:13*1.05*2},true);enemy.vx*=1.6;p.life=0;vertonalMusic({x:p.x,y:p.y+110},20);rings.push({x:p.x,y:p.y,r:12,age:0,max:23,kind:'guard'})}else if(p.lightning){const blocked=enemy.guard&&enemy.ground&&!enemy.guardBroken&&enemy.face===-owner.face;impact(owner,enemy,{...M.fire,name:'fire',stun:120,push:2},true);p.life=0;salvadorSpark(p.x,p.y,24);rings.push({x:enemy.x,y:enemy.y-105,r:18,age:0,max:24,kind:'electric'});if(!blocked&&enemy.hp>0){enemy.shock=240;enemy.stun=240;enemy.vx=0;enemy.vy=0;enemy.dash=0;enemy.airDash=0;enemy.ground=true;enemy.guard=false;enemy.move=null;setState(enemy,'hurt');notify(enemy.id,'PARALISADO · 4s','danger')}}else{impact(owner,enemy,{...M.fire,name:'fire'},true);p.life=0;burst(p.x,p.y,0xffb75b,44,'flame');particleEmitter(p.x,p.y,'fire',460);cinematic(p.x,p.y,'fire')}}}projectiles=projectiles.filter(p=>p.life>0&&p.x>-80&&p.x<W+80&&p.y>-80&&p.y<H+80&&(!p.music||!p.volley.hit));
 for(let p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=p.kind==='dust'?-.002:p.kind==='electric'?0:.22;p.life--}particles=particles.filter(p=>p.life>0);if(particles.length>MAX_PARTICLES)particles.splice(0,particles.length-MAX_PARTICLES);shake*=.76;
 if(mode==='training'){a.hp=100;b.hp=100;time=-1}
-if(mode!=='training'&&(a.hp<=0||b.hp<=0||(gamePrefs.roundTime!==-1&&time===0))){koGroundFrames=0;let winner=a.hp===b.hp?-1:a.hp>b.hp?0:1;if(winner>=0)wins[winner]++;announced=winner<0?'EMPATE':fighters[winner].kind.toUpperCase()+' VENCEU!';phase='result';after=0;projectiles.length=0;chipFields.length=0;for(const e of vfxEmitters){e.em.emit=false;e.ttl=Math.min(e.ttl,.7)};announce(gamePrefs.roundTime!==-1&&time===0?'TIME OVER!':'K.O.!',105);zoomTime=35;flashScreen=12;fighters.forEach((f,i)=>{f.move=null;f.diving=false;f.dash=0;f.airDash=0;f.vx=0;f.victoryLanding=false;if(winner!==i){f.koFalling=true;f.koLanded=false;f.koBounce=false;f.ground=false;f.vy=-9.5;setState(f,'hurt')}else if(!f.ground||f.y<FLOOR-1){f.victoryLanding=true;f.vy=Math.max(f.vy,0);setState(f,'jump')}else{f.y=FLOOR;f.vy=0;f.ground=true;setState(f,'victory')}})}edge.clear();dashTap.clear()}
+if(mode!=='training'&&(a.hp<=0||b.hp<=0||(gamePrefs.roundTime!==-1&&time===0))){rememberRound();koGroundFrames=0;let winner=a.hp===b.hp?-1:a.hp>b.hp?0:1;if(winner>=0)wins[winner]++;announced=winner<0?'EMPATE':fighters[winner].kind.toUpperCase()+' VENCEU!';phase='result';after=0;projectiles.length=0;chipFields.length=0;for(const e of vfxEmitters){e.em.emit=false;e.ttl=Math.min(e.ttl,.7)};announce(gamePrefs.roundTime!==-1&&time===0?'TIME OVER!':'K.O.!',105);zoomTime=35;flashScreen=12;fighters.forEach((f,i)=>{f.move=null;f.diving=false;f.dash=0;f.airDash=0;f.vx=0;f.victoryLanding=false;if(winner!==i){f.koFalling=true;f.koLanded=false;f.koBounce=false;f.ground=false;f.vy=-9.5;setState(f,'hurt')}else if(!f.ground||f.y<FLOOR-1){f.victoryLanding=true;f.vy=Math.max(f.vy,0);setState(f,'jump')}else{f.y=FLOOR;f.vy=0;f.ground=true;setState(f,'victory')}})}edge.clear();dashTap.clear()}
 function animation(f){
  if(f.kind==='chip'){
   // Chip2: idle, walk, jump, dash, guard, punch, kick, heavy, special, victory, hurt, defeat.
