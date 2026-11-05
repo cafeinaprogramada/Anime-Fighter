@@ -548,17 +548,15 @@ function aiStrikeDive(f){
  return attack(f,'heavy');
 }
 
-function body(f){if(f.kind==='wesley')return[{x:f.x-30,y:f.y-201,w:60,h:196},{x:f.x-25,y:f.y-202,w:50,h:62}];const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
-function push(f){if(f.kind==='wesley')return{x:f.x-27,y:f.y-87,w:54,h:85};const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
-function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;
- if(f.kind==='wesley'){
-  // Updated Wesley2 attack boxes: punch/kick on frame 2, heavy on frame 3.
-  const kick=m.name==='kick',heavy=m.name==='heavy';
-  const reach=kick?112:heavy?118:m.name==='punch'?100:m.reach;
-  const y=f.y-(kick?99:heavy?144:145),height=kick?45:heavy?48:48;
-  return{x:f.face===1?f.x+30:f.x-30-reach,y,w:reach,h:height};
- }
- let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
+// Sprite art is not centered within its transparent 514px cells.
+function collisionProfile(f){
+ if(f.kind==='wesley')return {cx:f.x-f.face*22,top:205,bw:87,bh:198,hw:63,hh:68,pw:66,ph:93,front:35};
+ if(f.kind==='jefrey')return {cx:f.x-f.face*36,top:199,bw:91,bh:193,hw:62,hh:66,pw:70,ph:88,front:34};
+ return null;
+}
+function body(f){const p=collisionProfile(f);if(p)return[{x:p.cx-p.bw/2,y:f.y-p.top,w:p.bw,h:p.bh},{x:p.cx-p.hw/2,y:f.y-p.top,w:p.hw,h:p.hh}];const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
+function push(f){const p=collisionProfile(f);if(p)return{x:p.cx-p.pw/2,y:f.y-p.ph-4,w:p.pw,h:p.ph};const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
+function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;const p=collisionProfile(f);if(p){const kick=m.name==='kick',heavy=m.name==='heavy',reach=f.kind==='wesley'?(kick?100:heavy?110:87):(kick?100:heavy?105:86),y=f.y-(kick?105:heavy?148:149),h=kick?49:heavy?55:52,origin=p.cx+f.face*p.front;return{x:f.face===1?origin:origin-reach,y,w:reach,h}}let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
 
 function intersect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function collision(a,b){return b.some(r=>intersect(a,r))}
