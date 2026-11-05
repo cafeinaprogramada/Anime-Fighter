@@ -166,7 +166,7 @@ const particleGraphics=new PIXI.Graphics();effects.addChild(particleGraphics);co
 // Sprite profiles: new Wesley sheet has 3 columns / 13 fully occupied rows.
 const WESLEY2={columns:3,rows:13,frameWidth:514,frameHeight:498,scale:96/498};
 // Jefrey2: 1542x5976 pixels, 3 columns x 12 rows, 514x498 per frame.
-const JEFREY2={columns:3,rows:12,frameWidth:514,frameHeight:498,scale:96/498};
+const JEFREY2={columns:3,rows:12,frameWidth:514,frameHeight:498,scale:(96/498)*0.85};
 const spriteScaleFor=kind=>kind==='wesley'?WESLEY2.scale:kind==='jefrey'?JEFREY2.scale:kind==='chip'?.828:kind==='vertonal'?96/116:1;
 const sheets={wesley:[],chip:[],jefrey:[],vertonal:[],salvador:[]},loaded={wesley:false,chip:false,jefrey:false,vertonal:false,salvador:false};
 for(const name of ['wesley','chip','jefrey','vertonal','salvador']){try{const path='assets/characters/'+(name==='wesley'?'Wesley2':name==='chip'?'Chip':name==='jefrey'?'Jefrey2':name==='vertonal'?'Vertonal':'Salvador')+'.png',tex=await PIXI.Assets.load(path);const fw=name==='wesley'?WESLEY2.frameWidth:name==='jefrey'?JEFREY2.frameWidth:name==='vertonal'?206:96,fh=name==='wesley'?WESLEY2.frameHeight:name==='jefrey'?JEFREY2.frameHeight:name==='vertonal'?116:96;for(let row=0;row<(name==='wesley'?WESLEY2.rows:name==='jefrey'?JEFREY2.rows:14);row++){sheets[name][row]=[];for(let col=0;col<(name==='wesley'?WESLEY2.columns:name==='jefrey'?JEFREY2.columns:4);col++)sheets[name][row].push(new PIXI.Texture({source:tex.source,frame:new PIXI.Rectangle(col*fw,row*fh,fw,fh)}))}loaded[name]=true}catch(e){console.error('Falha ao carregar '+name,e)}}
