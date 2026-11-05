@@ -548,12 +548,13 @@ function ai(f,enemy){
   else if(p.dist<=p.near&&p.backward<=75&&can('punch')&&q.cooldown===0&&aiStrike(f,p,level))return;
   setState(f,f.vx?(f.vx*p.dir>0?'walk':'back'):'idle');return;
  }
- // Every fighter can punish and attack; opponent-specific checks never bypass this.
- if(f.kind==='vertonal'&&f.ground&&q.cooldown===0&&can('fire')&&p.dist>115&&p.dist<290&&Math.random()<.045){if(attack(f,'fire')){q.cooldown=90;return}}
- if(p.dist<=Math.max(p.near,p.medium,aiAttackRange(f,enemy,'heavy'))&&q.cooldown===0&&(!vsJefrey||p.dist<145||p.enemyRecover)&&aiStrike(f,p,level))return;
+ // Chip's damaging shield needs close spacing and a window before normal strikes consume stamina.
  if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<=145&&(vsJefrey||p.threat||p.enemyAir||p.enemyRecover||enemy.x<155||enemy.x>W-155)&&Math.random()<(vsJefrey?.13:.16)){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
+ // Every fighter can punish and attack; opponent-specific checks never bypass this.
+ if(f.kind==='vertonal'&&f.ground&&q.cooldown===0&&can('fire')&&p.dist>115&&p.dist<290&&Math.random()<.045){if(attack(f,'fire')){q.cooldown=90;return}}
+ if(p.dist<=Math.max(p.near,p.medium,aiAttackRange(f,enemy,'heavy'))&&q.cooldown===0&&(!vsJefrey||p.dist<145||p.enemyRecover)&&aiStrike(f,p,level))return;
  if(f.kind==='jefrey'&&f.ground&&p.dist>320&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
