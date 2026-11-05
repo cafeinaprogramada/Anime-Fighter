@@ -320,12 +320,23 @@ const AI_PROFILES={
  jefrey:{speed:1.21,range:140,aggression:1,air:.035,dash:13,combo:5},
  vertonal:{speed:.9,range:205,aggression:.77,air:.019,dash:11,combo:0},salvador:{speed:1,range:285,aggression:.78,air:.014,dash:12,combo:0}
 };
+function aiAttackRange(f,e,key){
+ const a=collisionProfile(f),b=collisionProfile(e);
+ const reach=a?(f.kind==='wesley'?(key==='kick'?100:key==='heavy'?110:87):f.kind==='chip'?(key==='kick'?95:key==='heavy'?105:88):(key==='kick'?100:key==='heavy'?105:86)):M[key].reach;
+ const front=a?a.front:24,attackerOffset=a?-a.front+front:0;
+ const defenderWidth=b?b.bw/2:(e.kind==='vertonal'?45.5:35);
+ const defenderOffset=b?b.cx-e.x:0;
+ // Reach in center-to-center coordinates, accounting for actual body box and facing.
+ const effective=reach+front+(a?a.cx-f.x:0)*f.face+defenderWidth-defenderOffset*f.face;
+ return Math.max(65,effective*.95);
+}
 function aiPerception(f,e){
  const dist=Math.abs(e.x-f.x),dir=Math.sign(e.x-f.x)||1;
  const forward=dir>0?W-35-f.x:f.x-35,backward=dir>0?f.x-35:W-35-f.x;
  const incoming=projectiles.find(p=>p.owner!==f.id&&Math.sign(f.x-p.x)===Math.sign(p.vx)&&Math.abs(p.x-f.x)<240);
  const threat=!!(e.move&&e.t>=e.move.start-10&&e.t<e.move.start+e.move.active+3&&dist<e.move.reach+60);
- return{dist,dir,forward,backward,incoming,threat,low:f.stamina<22,critical:f.hp<30&&f.stamina<40,enemyAir:!e.ground,enemyRecover:!!(e.move&&e.t>=e.move.start+e.move.active)};
+ const near=aiAttackRange(f,e,'punch'),medium=aiAttackRange(f,e,'kick'),far=Math.max(260,medium+105);
+ return{dist,dir,forward,backward,incoming,threat,near,medium,far,low:f.stamina<22,critical:f.hp<30&&f.stamina<40,enemyAir:!e.ground,enemyRecover:!!(e.move&&e.t>=e.move.start+e.move.active)};
 }
 function aiDash(f,p,profile,level){
  if(!f.ground||p.forward<130||f.ai.dashCooldown>0)return false;
@@ -348,13 +359,14 @@ function aiDirectionalDash(f,dir,profile,level){
 function aiStrike(f,p,level){
  if(f.ai.cooldown>0)return false;
  const can=k=>f.stamina>=attackCost(f,k);
- let moves=p.dist<110?['punch','kick','heavy']:['kick','heavy','punch'];
+ let moves=p.dist<=p.near?['punch','kick','heavy']:['kick','heavy','punch'];
  if(f.kind==='jefrey'){
   if(!f.ai.comboPlan)f.ai.comboPlan=Math.random()<.5?4:6;
   const n=f.ai.comboPlan;
   moves=n%3===0?['kick','punch','heavy']:n%4===0?['heavy','punch','kick']:['punch','kick','heavy'];
  }
  for(const key of moves){
+  if(p.dist>aiAttackRange(f,fighters[1-f.id],key))continue;
   if(can(key)&&attack(f,key)){
    if(f.kind==='jefrey')f.ai.comboPlan=Math.max(0,f.ai.comboPlan-1);
    f.ai.cooldown=f.kind==='jefrey'?(level==='easy'?11:5):(level==='hard'?16:level==='easy'?32:23);
@@ -385,9 +397,9 @@ function ai(f,enemy){
  const memory=aiMemoryBias(f,enemy,level);
  // Adaptation is a small bias on existing movement choices, not a new AI controller.
  const can=k=>!!M[k]&&f.stamina>=attackCost(f,k);
- // Every 10 seconds, a 1-in-6 tactical opportunity modestly favors a special.
+ // Every 10 seconds, a 1-in-4 tactical opportunity modestly favors a special.
  if(q.specialNext===undefined)q.specialNext=tick+600;
- if(tick>=q.specialNext){q.specialNext=tick+600;q.specialPlan=Math.random()<1/6?90:0}
+ if(tick>=q.specialNext){q.specialNext=tick+600;q.specialPlan=Math.random()<1/4?150:0}
  if(q.specialPlan>0)q.specialPlan--;
  // Re-evaluate the combat approach every three seconds, with a 25% aggression bias.
  if(tick>=q.tacticUntil){
@@ -405,10 +417,10 @@ function ai(f,enemy){
  if(!canAct(f))return;
  // Short special setup: only when safe and affordable; existing defense takes precedence.
  if(q.specialPlan>0&&q.cooldown===0&&can('fire')&&!p.threat&&f.stun<=0&&f.hp>0){
-  const target=f.kind==='chip'?175:f.kind==='jefrey'?385:f.kind==='vertonal'?230:260;
-  const ready=f.kind==='chip'?p.dist<245:f.kind==='jefrey'?f.ground&&p.dist>335&&f.boost<90:f.kind==='vertonal'?f.ground&&p.dist>105&&p.dist<310:f.ground;
-  if(ready&&Math.random()<.10){if(attack(f,'fire')){q.cooldown=95;q.specialPlan=0;return}}
-  if(f.kind==='chip'&&p.dist>target+35&&p.forward>60){f.vx=p.dir*speed*.88;setState(f,f.ground?'walk':'jump');return}
+  const target=f.kind==='chip'?120:f.kind==='jefrey'?385:f.kind==='vertonal'?230:260;
+  const ready=f.kind==='chip'?p.dist<=145:f.kind==='jefrey'?f.ground&&p.dist>335&&f.boost<90:f.kind==='vertonal'?f.ground&&p.dist>115&&p.dist<290:f.ground;
+  if(ready&&Math.random()<(f.kind==='chip'?.16:.10)){if(attack(f,'fire')){q.cooldown=95;q.specialPlan=0;return}}
+  if(f.kind==='chip'&&p.dist>target+15&&p.forward>60){f.vx=p.dir*speed*.88;setState(f,f.ground?'walk':'jump');return}
   if(f.kind==='jefrey'&&f.ground&&p.dist<target-30&&p.backward>75){f.vx=-p.dir*speed*.935;setState(f,'back');return}
   if(f.kind==='vertonal'&&f.ground&&p.dist>target+40&&p.forward>75){f.vx=p.dir*speed*.75;setState(f,'walk');return}
  }
@@ -445,7 +457,7 @@ function ai(f,enemy){
  // All fighters keep a stable movement decision until its duration expires.
  // Do not suppress an immediate attack opportunity while walking into striking range.
  if(f.ground&&q.spaceTimer>0&&!aggressive&&!p.threat){
-  if(p.dist<155&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
+  if(p.dist<=p.near&&q.cooldown===0&&f.stamina>=staminaCost(f,M.punch.cost)){q.spaceTimer=0;if(aiStrike(f,p,level))return}
   const room=q.spaceDir>0?W-45-f.x:f.x-45;
   if(q.spaceTimer>0&&room>48){q.spaceTimer--;f.vx=q.spaceDir*speed*.935;setState(f,f.vx*p.dir>0?'walk':'back');return}
   q.spaceTimer=0;
@@ -488,9 +500,9 @@ function ai(f,enemy){
   q.state='defend';
  }else if((p.critical||p.low)&&!aggressive){
   q.state='recover';
- }else if(p.dist<185){
+ }else if(p.dist<=p.near+15){
   q.state='pressure';
- }else if(p.dist>preferred+65){
+ }else if(p.dist>Math.max(preferred,p.medium)+45){
   q.state='approach';
  }else{
   q.state='space';
@@ -530,19 +542,19 @@ function ai(f,enemy){
    }
    if(room>70){q.spaceDir=retreat;q.spaceTimer=20+Math.floor(Math.random()*28);q.moveCooldown=75;f.vx=retreat*speed*.85;setState(f,'back');return}
   }
-  if(p.dist<125&&q.cooldown===0&&can('punch')&&p.enemyRecover&&aiStrike(f,p,level))return;
+  if(p.dist<=p.near&&q.cooldown===0&&can('punch')&&p.enemyRecover&&aiStrike(f,p,level))return;
   if(p.dist<preferred-25&&p.backward>75)f.vx=-p.dir*speed*.88;
   else if(p.dist>preferred+40&&p.forward>70)f.vx=p.dir*speed*.7;
-  else if(p.dist<105&&p.backward<=75&&can('punch')&&q.cooldown===0&&aiStrike(f,p,level))return;
+  else if(p.dist<=p.near&&p.backward<=75&&can('punch')&&q.cooldown===0&&aiStrike(f,p,level))return;
   setState(f,f.vx?(f.vx*p.dir>0?'walk':'back'):'idle');return;
  }
  // Every fighter can punish and attack; opponent-specific checks never bypass this.
- if(f.kind==='vertonal'&&f.ground&&q.cooldown===0&&can('fire')&&p.dist>95&&p.dist<310&&Math.random()<.045){if(attack(f,'fire')){q.cooldown=90;return}}
- if(p.dist<(aggressive?f.kind==='vertonal'?255:205:f.kind==='vertonal'?225:180)&&q.cooldown===0&&(!vsJefrey||p.dist<145||p.enemyRecover)&&aiStrike(f,p,level))return;
- if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<(vsJefrey?315:260)&&(vsJefrey||p.threat||p.enemyAir||enemy.x<155||enemy.x>W-155)&&Math.random()<(vsJefrey?.095:.13)){
+ if(f.kind==='vertonal'&&f.ground&&q.cooldown===0&&can('fire')&&p.dist>115&&p.dist<290&&Math.random()<.045){if(attack(f,'fire')){q.cooldown=90;return}}
+ if(p.dist<=Math.max(p.near,p.medium,aiAttackRange(f,enemy,'heavy'))&&q.cooldown===0&&(!vsJefrey||p.dist<145||p.enemyRecover)&&aiStrike(f,p,level))return;
+ if(f.kind==='chip'&&can('fire')&&q.cooldown===0&&p.dist<=145&&(vsJefrey||p.threat||p.enemyAir||p.enemyRecover||enemy.x<155||enemy.x>W-155)&&Math.random()<(vsJefrey?.13:.16)){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
- if(f.kind==='jefrey'&&f.ground&&p.dist>355&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
+ if(f.kind==='jefrey'&&f.ground&&p.dist>320&&can('fire')&&f.stamina>=staminaCost(f,M.fire.cost)+12&&q.cooldown===0&&f.boost<90&&Math.random()<.055){
   if(attack(f,'fire')){q.cooldown=95;return}
  }
  if(f.stamina>35&&p.dist>140&&p.dist<395&&q.cooldown===0&&Math.random()<Math.max(profile.air*(f.kind==='chip'?1.1:1),aggressive&&f.kind==='chip'?.077:.0253)+memory.air){
