@@ -588,7 +588,7 @@ function collisionProfile(f){
  if(f.kind==='chip')return {cx:f.x,top:178,bw:84,bh:174,hw:60,hh:59,pw:71.5,ph:83,front:34};
  if(f.kind==='jefrey')return {cx:f.x-f.face*36,top:199,bw:91,bh:193,hw:62,hh:66,pw:70,ph:88,front:34};
  // Vertonal2: vulnerability follows the red torso reference, never the blue sound trails.
- if(f.kind==='vertonal')return {cx:f.x-f.face*13.2,top:209,bw:113.3,bh:203.5,hw:75.9,hh:75.9,pw:88,ph:92,front:48.4};
+ if(f.kind==='vertonal')return {cx:f.x-f.face*13.2,top:209,bw:67.98,bh:203.5,hw:45.54,hh:75.9,pw:88,ph:92,front:48.4};
  return null;
 }
 function body(f){const p=collisionProfile(f);if(p)return[{x:p.cx-p.bw/2,y:f.y-p.top,w:p.bw,h:p.bh},{x:p.cx-p.hw/2,y:f.y-p.top,w:p.hw,h:p.hh}];const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
