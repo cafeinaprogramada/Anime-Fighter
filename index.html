@@ -323,7 +323,7 @@ const AI_PROFILES={
 };
 function aiAttackRange(f,e,key){
  const a=collisionProfile(f),b=collisionProfile(e);
- const reach=a?(f.kind==='wesley'?(key==='kick'?100:key==='heavy'?110:87):f.kind==='chip'?(key==='kick'?95:key==='heavy'?105:88):f.kind==='vertonal'?(key==='kick'?171.6:key==='heavy'?165:136.4):(key==='kick'?100:key==='heavy'?105:86)):M[key].reach;
+ const reach=a?(f.kind==='wesley'?(key==='kick'?100:key==='heavy'?110:87):f.kind==='chip'?(key==='kick'?95:key==='heavy'?105:88):f.kind==='vertonal'?(key==='kick'?102.96:key==='heavy'?99:81.84):(key==='kick'?100:key==='heavy'?105:86)):M[key].reach;
  const front=a?a.front:24,attackerOffset=a?-a.front+front:0;
  const defenderWidth=b?b.bw/2:(e.kind==='vertonal'?45.5:35);
  const defenderOffset=b?b.cx-e.x:0;
@@ -588,12 +588,12 @@ function collisionProfile(f){
  if(f.kind==='chip')return {cx:f.x,top:178,bw:84,bh:174,hw:60,hh:59,pw:71.5,ph:83,front:34};
  if(f.kind==='jefrey')return {cx:f.x-f.face*36,top:199,bw:91,bh:193,hw:62,hh:66,pw:70,ph:88,front:34};
  // Vertonal2: vulnerability follows the red torso reference, never the blue sound trails.
- if(f.kind==='vertonal')return {cx:f.x-f.face*13.2,top:209,bw:67.98,bh:203.5,hw:45.54,hh:75.9,pw:88,ph:92,front:48.4};
+ if(f.kind==='vertonal')return {cx:f.x-f.face*13.2,top:209,bw:113.3,bh:203.5,hw:75.9,hh:75.9,pw:88,ph:92,front:48.4};
  return null;
 }
 function body(f){const p=collisionProfile(f);if(p)return[{x:p.cx-p.bw/2,y:f.y-p.top,w:p.bw,h:p.bh},{x:p.cx-p.hw/2,y:f.y-p.top,w:p.hw,h:p.hh}];const k=f.kind==='vertonal'?1.3:1;return[{x:f.x-35*k,y:f.y-181,w:70*k,h:179},{x:f.x-23*k,y:f.y-183,w:46*k,h:56}]}
 function push(f){const p=collisionProfile(f);if(p)return{x:p.cx-p.pw/2,y:f.y-p.ph-4,w:p.pw,h:p.ph};const k=f.kind==='vertonal'?1.3:1;return{x:f.x-30*k,y:f.y-82,w:60*k,h:80}}
-function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;const p=collisionProfile(f);if(p){const kick=m.name==='kick',heavy=m.name==='heavy',reach=f.kind==='wesley'?(kick?100:heavy?110:87):f.kind==='chip'?(kick?95:heavy?105:88):f.kind==='vertonal'?(kick?171.6:heavy?165:136.4):(kick?100:heavy?105:86),y=f.y-(f.kind==='vertonal'?(kick?115.5:heavy?162.8:163.9):(kick?105:heavy?148:149)),h=f.kind==='vertonal'?(kick?53.9:heavy?60.5:57.2):(kick?49:heavy?55:52),origin=p.cx+f.face*p.front;return{x:f.face===1?origin:origin-reach,y,w:reach,h}}let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
+function hitbox(f){let m=f.move;if(!m||f.t<m.start||f.t>=m.start+m.active||m.name==='fire')return null;const p=collisionProfile(f);if(p){const kick=m.name==='kick',heavy=m.name==='heavy',reach=f.kind==='wesley'?(kick?100:heavy?110:87):f.kind==='chip'?(kick?95:heavy?105:88):f.kind==='vertonal'?(kick?102.96:heavy?99:81.84):(kick?100:heavy?105:86),y=f.y-(f.kind==='vertonal'?(kick?115.5:heavy?162.8:163.9):(kick?105:heavy?148:149)),h=f.kind==='vertonal'?(kick?53.9:heavy?60.5:57.2):(kick?49:heavy?55:52),origin=p.cx+f.face*p.front;return{x:f.face===1?origin:origin-reach,y,w:reach,h}}let extend=m.reach,low=m.name==='kick',y=f.y-(low?120:m.name==='heavy'?130:165);return{x:f.face===1?f.x+24:f.x-24-extend,y,w:extend,h:low?47:53}}
 
 function intersect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function collision(a,b){return b.some(r=>intersect(a,r))}
